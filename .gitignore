@@ -10,8 +10,7 @@ venv/
 env/
 .venv/
 
-# Database (generated — run extract_excel.py to rebuild)
-backend/data/monsters.db
+# Database — committed for easy setup; run extract_excel.py + seed scripts to rebuild from Excel
 
 # Excel source (large binary, keep locally)
 *.xlsm
