@@ -59,6 +59,7 @@ def create_schema(conn: sqlite3.Connection):
         environment TEXT,
         organization TEXT,
         challenge_rating REAL,
+        cr_text TEXT,
         treasure TEXT,
         alignment TEXT,
         advancement TEXT,
@@ -264,6 +265,48 @@ def safe_float(val, default=None):
         return default
 
 
+def parse_cr(val):
+    """
+    Parse a CR value that may contain parenthetical variants or fraction strings.
+    Returns (numeric_float, display_text).
+    Examples:
+      "5 (noble 8)"                      -> (5.0, "5 (noble 8)")
+      "4 (5 with irresistible dance)"    -> (4.0, "4 (5 with irresistible dance)")
+      "2 (without pipes) or 4 ..."       -> (2.0, "2 (without pipes) or 4 ...")
+      "4 (normal);\n6 (pyro- or cryo-)" -> (4.0, "4 (normal); 6 (pyro- or cryo-)")
+      "1/2"                              -> (0.5, "1/2")
+      5.0                                -> (5.0, "5")
+    """
+    import re
+    if val is None:
+        return None, None
+    # Already a number
+    if isinstance(val, (int, float)):
+        num = float(val)
+        text = str(int(num)) if num == int(num) else str(num)
+        return num, text
+    s = str(val).strip()
+    s = re.sub(r';\s*\n\s*', '; ', s)   # ";\n" -> "; "
+    s = re.sub(r'\n+', '; ', s)         # bare newlines -> "; "
+    # Grab first token (before space, parenthesis, semicolon, or "or")
+    first = re.split(r'[\s(;]', s)[0]
+    # Handle fraction like "1/2"
+    if '/' in first:
+        parts = first.split('/')
+        try:
+            num = float(parts[0]) / float(parts[1])
+            return num, s
+        except (ValueError, ZeroDivisionError):
+            pass
+    # Handle plain number
+    try:
+        num = float(first)
+        return num, s
+    except ValueError:
+        pass
+    return None, s
+
+
 def safe_str(val):
     if val is None:
         return None
@@ -290,13 +333,13 @@ def extract_monsters(wb, conn):
                 special_attacks, special_qualities, skills, feats, all_feats,
                 saves, fort_save_type, ref_save_type, will_save_type,
                 str, dex, con, int, wis, cha,
-                environment, organization, challenge_rating, treasure,
+                environment, organization, challenge_rating, cr_text, treasure,
                 alignment, advancement, max_adv_base_size, max_adv_next_size,
                 special_abilities, stat_block, reference, level_adjustment,
                 altname, bonus_feats, bonus_feat_count
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                      ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             monster_id,
             name,
@@ -336,7 +379,7 @@ def extract_monsters(wb, conn):
             safe_int(ws.cell(row=row, column=36).value),  # cha
             safe_str(ws.cell(row=row, column=37).value),  # environment
             safe_str(ws.cell(row=row, column=38).value),  # organization
-            safe_float(ws.cell(row=row, column=39).value), # challenge_rating
+            *parse_cr(ws.cell(row=row, column=39).value),  # challenge_rating, cr_text
             safe_str(ws.cell(row=row, column=40).value),  # treasure
             safe_str(ws.cell(row=row, column=41).value),  # alignment
             safe_str(ws.cell(row=row, column=42).value),  # advancement
@@ -351,6 +394,15 @@ def extract_monsters(wb, conn):
             safe_int(ws.cell(row=row, column=51).value),  # bonus_feat_count
         ))
         count += 1
+
+    # Animals and Vermin are always neutral; Excel omits it for most entries
+    c.execute("""
+        UPDATE monsters SET alignment = 'Always neutral'
+        WHERE type IN ('Animal', 'Vermin') AND (alignment IS NULL OR alignment = '')
+    """)
+    fixed = c.rowcount
+    if fixed:
+        print(f"  Defaulted {fixed} Animal/Vermin alignments to 'Always neutral'")
 
     conn.commit()
     print(f"  Extracted {count} monsters")

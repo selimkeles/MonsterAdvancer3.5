@@ -9,8 +9,10 @@ class MonsterSummary(BaseModel):
     size: Optional[str] = None
     type: Optional[str] = None
     challenge_rating: Optional[float] = None
+    cr_text: Optional[str] = None
     hd_count: Optional[int] = None
     alignment: Optional[str] = None
+    advancement: Optional[str] = None
     environment: Optional[str] = None
 
 
@@ -48,6 +50,7 @@ class MonsterDetail(BaseModel):
     environment: Optional[str] = None
     organization: Optional[str] = None
     challenge_rating: Optional[float] = None
+    cr_text: Optional[str] = None
     treasure: Optional[str] = None
     alignment: Optional[str] = None
     advancement: Optional[str] = None
@@ -102,6 +105,8 @@ class AdvancementRequest(BaseModel):
     class_levels: list[ClassLevelRequest] = []
     equipped_armor: Optional[str] = None
     equipped_shield: Optional[str] = None
+    is_masterwork_armor: bool = False
+    skill_increases: Optional[dict] = None  # {"Climb": 2, "Hide": 1, ...}
 
 
 class StatBlockResponse(BaseModel):
@@ -131,6 +136,8 @@ class StatBlockResponse(BaseModel):
     feats: str
     max_feats: int
     skills: str
+    bonus_skill_points: int = 0
+    spent_skill_points: int = 0
     special_attacks: str
     special_qualities: str
     environment: str

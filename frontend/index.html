@@ -519,6 +519,49 @@
     .dlg-guidance.ok   { border-color: #2a7a2a; background: #efffef; color: #1a4a1a; }
     .dlg-guidance.warn { border-color: #c00;    background: #fff0f0; color: #800; }
 
+    .feats-ac-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0; right: 0;
+      background: #fff;
+      border: 1px solid #999;
+      border-top: none;
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 1000;
+      font-size: 12px;
+    }
+    .feats-ac-dropdown div {
+      padding: 4px 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .feats-ac-dropdown div:hover,
+    .feats-ac-dropdown div.ac-active { background: #c0d8f0; }
+
+    .combat-feats-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      margin: 4px 0;
+    }
+    .combat-feats-table th {
+      text-align: center;
+      font-weight: bold;
+      padding: 2px 4px;
+      background: #ddd;
+      border: 1px solid #bbb;
+      font-size: 10px;
+    }
+    .combat-feats-table td {
+      padding: 2px 4px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    .combat-feats-table td:first-child { text-align: left; font-weight: bold; }
+
     .skill-delta-note {
       font-size: 11px;
       color: #555;
@@ -606,10 +649,11 @@
             <th data-col="challenge_rating">CR</th>
             <th data-col="hd_count">HD</th>
             <th data-col="alignment">Align</th>
+            <th data-col="advancement">Adv</th>
           </tr>
         </thead>
         <tbody id="monster-table-body">
-          <tr><td colspan="6" class="loading">Loading...</td></tr>
+          <tr><td colspan="7" class="loading">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -628,8 +672,29 @@
     <div class="form-group" style="margin-bottom:6px;">
       <label>Acquired Feats (comma-separated)</label>
       <div id="dlg-feat-guide" class="dlg-guidance" style="margin-top:4px; margin-bottom:4px;"></div>
-      <input type="text" id="dlg-feats" list="feats-datalist" placeholder="e.g. Power Attack, Cleave" style="width:100%;">
-      <datalist id="feats-datalist"></datalist>
+      <div style="position:relative;">
+        <input type="text" id="dlg-feats" autocomplete="off" placeholder="e.g. Power Attack, Cleave" style="width:100%;">
+        <div id="feats-autocomplete" class="feats-ac-dropdown" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-weight:bold; font-size:11px; color:#444; text-transform:uppercase; display:block; margin-bottom:4px;">Combat Feats (per attack)</label>
+      <div id="dlg-combat-feats" style="font-size:11px; margin-bottom:6px;">
+        <!-- Populated dynamically with per-attack checkboxes -->
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:4px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:4px;">
+          <label style="font-size:11px; font-weight:bold; white-space:nowrap;">Imp. Natural Armor:</label>
+          <input type="number" id="dlg-imp-nat-armor" value="0" min="0" max="5" style="width:44px; font-family:inherit; font-size:11px; padding:2px 3px; border:1px solid #999;">
+          <span style="font-size:10px; color:#666;">(+1 AC ea.)</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <input type="checkbox" id="dlg-weapon-finesse" onchange="onGlobalFeatChange()">
+          <label for="dlg-weapon-finesse" style="font-size:11px; font-weight:bold; white-space:nowrap;">Weapon Finesse</label>
+          <span style="font-size:10px; color:#666;">(use DEX for att if higher)</span>
+        </div>
+      </div>
     </div>
 
     <div style="margin-bottom:10px;">
@@ -654,6 +719,18 @@
         <label>Equipped Shield</label>
         <select id="dlg-shield"><option value="">-- none --</option></select>
       </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:12px; cursor:pointer;">
+        <input type="checkbox" id="dlg-mw-armor"> Masterwork Armor (+1 max DEX bonus)
+      </label>
+      <span id="armor-dex-note" style="font-size:11px; color:#666; margin-left:8px;"></span>
+    </div>
+
+    <!-- Skill Ranks -->
+    <div id="dlg-skills-section" style="display:none; margin-bottom:12px;">
+      <div id="dlg-skill-guide" class="dlg-guidance" style="margin-bottom:6px;"></div>
+      <div id="dlg-skill-list" style="max-height:180px; overflow-y:auto; border:1px solid #ccc; border-radius:4px; padding:6px; background:#fafafa;"></div>
     </div>
 
     <div style="display:flex; gap:8px;">
@@ -681,6 +758,7 @@ const state = {
   feats: [],
   classes: [],
   armor: [],
+  types: [],
   searchDebounce: null,
   advState: {
     newHD: null,           // null = use base
@@ -688,6 +766,11 @@ const state = {
     abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     equippedArmor: '',
     equippedShield: '',
+    isMWArmor: false,      // Masterwork armor (+1 max DEX)
+    skillInc: {},          // { "Climb": 2, "Hide": 1, ... }
+    combatFeats: {},       // { attackName: { wf: bool, ina: bool, ic: bool } }
+    impNatArmor: 0,        // Improved Natural Armor count
+    weaponFinesse: false,  // Weapon Finesse feat
   },
 };
 
@@ -721,6 +804,17 @@ function compareClass(a, b) {
   if (a > b) return state.sortAsc ? 1 : -1;
   if (a < b) return state.sortAsc ? -1 : 1;
   return 0;
+}
+
+// Return the best display string for a monster's CR
+function displayCR(m) {
+  if (m.cr_text) return m.cr_text;
+  if (m.challenge_rating == null) return '?';
+  const n = m.challenge_rating;
+  if (n === 0.5)   return '1/2';
+  if (n === 0.25)  return '1/4';
+  if (n === 0.125) return '1/8';
+  return String(n % 1 === 0 ? Math.round(n) : n);
 }
 
 function crToFloat(cr) {
@@ -775,12 +869,13 @@ async function postJSON(url, body) {
 async function init() {
   setHeaderStatus('Loading data...');
   try {
-    const [monsters, sizes, feats, classes, armor] = await Promise.all([
+    const [monsters, sizes, feats, classes, armor, types] = await Promise.all([
       fetchJSON(`${API}/monsters?limit=600`),
       fetchJSON(`${API}/sizes`),
       fetchJSON(`${API}/feats`),
       fetchJSON(`${API}/classes`),
       fetchJSON(`${API}/armor`),
+      fetchJSON(`${API}/types`),
     ]);
 
     state.allMonsters = monsters;
@@ -789,6 +884,7 @@ async function init() {
     state.feats = feats;
     state.classes = classes;
     state.armor = armor;
+    state.types = types;
 
     populateFeatDatalist();
     populateArmorSelects();
@@ -824,14 +920,94 @@ function setHeaderStatus(msg) {
 // ============================================================
 
 function populateFeatDatalist() {
-  const dl = document.getElementById('feats-datalist');
-  dl.innerHTML = '';
-  for (const f of state.feats) {
-    const opt = document.createElement('option');
-    opt.value = f;
-    dl.appendChild(opt);
-  }
+  // No-op: feats list is used by the custom autocomplete (state.feats)
 }
+
+// ============================================================
+// CUSTOM FEAT AUTOCOMPLETE (comma-aware)
+// ============================================================
+(function () {
+  const input = document.getElementById('dlg-feats');
+  const dropdown = document.getElementById('feats-autocomplete');
+  let activeIdx = -1;
+
+  function getQuery() {
+    const val = input.value;
+    const lastComma = val.lastIndexOf(',');
+    return lastComma === -1 ? val.trim() : val.slice(lastComma + 1).trim();
+  }
+
+  function getAlreadyPicked() {
+    return input.value.split(',').map(f => f.trim().toLowerCase()).filter(Boolean);
+  }
+
+  function showDropdown(items) {
+    activeIdx = -1;
+    dropdown.innerHTML = '';
+    if (items.length === 0) { dropdown.style.display = 'none'; return; }
+    for (const feat of items) {
+      const div = document.createElement('div');
+      div.textContent = feat;
+      div.addEventListener('mousedown', e => { e.preventDefault(); selectFeat(feat); });
+      dropdown.appendChild(div);
+    }
+    dropdown.style.display = 'block';
+  }
+
+  function hideDropdown() {
+    dropdown.style.display = 'none';
+    activeIdx = -1;
+  }
+
+  function selectFeat(feat) {
+    const val = input.value;
+    const lastComma = val.lastIndexOf(',');
+    const prefix = lastComma === -1 ? '' : val.slice(0, lastComma + 1) + ' ';
+    input.value = prefix + feat + ', ';
+    hideDropdown();
+    updateFeatGuide();
+    input.focus();
+  }
+
+  function setActive(idx) {
+    const items = dropdown.querySelectorAll('div');
+    items.forEach((el, i) => el.classList.toggle('ac-active', i === idx));
+    activeIdx = idx;
+    if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+  }
+
+  input.addEventListener('input', () => {
+    const q = getQuery().toLowerCase();
+    if (!q) { hideDropdown(); updateFeatGuide(); return; }
+    const picked = getAlreadyPicked();
+    const matches = state.feats
+      .filter(f => f.toLowerCase().includes(q) && !picked.includes(f.toLowerCase()))
+      .slice(0, 30);
+    showDropdown(matches);
+    updateFeatGuide();
+  });
+
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('div');
+    if (dropdown.style.display === 'none') return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive(Math.min(activeIdx + 1, items.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive(Math.max(activeIdx - 1, 0));
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (activeIdx >= 0 && items[activeIdx]) {
+        e.preventDefault();
+        selectFeat(items[activeIdx].textContent);
+      }
+    } else if (e.key === 'Escape') {
+      hideDropdown();
+    }
+  });
+
+  input.addEventListener('blur', () => setTimeout(hideDropdown, 150));
+})();
 
 function populateArmorSelects() {
   const armorSel = document.getElementById('dlg-armor');
@@ -842,12 +1018,155 @@ function populateArmorSelects() {
   for (const item of state.armor) {
     const opt = document.createElement('option');
     opt.value = item.name;
-    opt.textContent = `${item.name} (AC+${item.ac_bonus})`;
+    const maxDex = item.max_dex != null ? `, max Dex +${item.max_dex}` : '';
+    opt.textContent = `${item.name} (AC+${item.ac_bonus}${maxDex})`;
     if (item.category === 'Shield') {
       shieldSel.appendChild(opt);
     } else {
       armorSel.appendChild(opt.cloneNode(true));
     }
+  }
+}
+
+function updateArmorDexNote() {
+  const note = document.getElementById('armor-dex-note');
+  const armorName = document.getElementById('dlg-armor').value;
+  const shieldName = document.getElementById('dlg-shield').value;
+  const mw = document.getElementById('dlg-mw-armor').checked;
+  if (!armorName && !shieldName) { note.textContent = ''; return; }
+
+  const armorItem = state.armor.find(a => a.name === armorName);
+  const shieldItem = state.armor.find(a => a.name === shieldName);
+
+  let cap = null;
+  if (armorItem && armorItem.max_dex != null) cap = armorItem.max_dex;
+  if (shieldItem && shieldItem.max_dex != null) {
+    cap = cap != null ? Math.min(cap, shieldItem.max_dex) : shieldItem.max_dex;
+  }
+  if (cap != null && mw) cap += 1;
+
+  if (cap != null) {
+    note.textContent = `Max DEX to AC: +${cap}`;
+    note.style.color = '#c60';
+  } else {
+    note.textContent = '';
+  }
+}
+
+// ============================================================
+// SKILL RANK UI
+// ============================================================
+
+function parseSkills(text) {
+  if (!text || !text.trim()) return [];
+  const results = [];
+  const parts = text.split(/,\s*/);
+  for (const part of parts) {
+    const m = part.match(/^(.+?)\s+([+-]\d+)(.*)/);
+    if (m) results.push({ name: m[1].trim(), bonus: parseInt(m[2]), suffix: m[3] || '' });
+  }
+  return results;
+}
+
+function populateSkillRanks() {
+  const m = state.selectedMonster;
+  const section = document.getElementById('dlg-skills-section');
+  const guide = document.getElementById('dlg-skill-guide');
+  const list = document.getElementById('dlg-skill-list');
+  if (!m || !m.skills) { section.style.display = 'none'; return; }
+
+  const skills = parseSkills(m.skills);
+  if (!skills.length) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+  const adv = state.advState;
+
+  list.innerHTML = '';
+  const table = document.createElement('table');
+  table.style.cssText = 'width:100%; font-size:12px; border-collapse:collapse;';
+  for (const sk of skills) {
+    const tr = document.createElement('tr');
+    const inc = adv.skillInc[sk.name] || 0;
+    tr.innerHTML = `
+      <td style="padding:2px 4px;">${escHtml(sk.name)}</td>
+      <td style="padding:2px 4px; text-align:right; color:#666;">+${sk.bonus}</td>
+      <td style="padding:2px 4px; width:90px; text-align:center;">
+        <button class="btn" style="padding:0 6px; font-size:11px; min-width:20px;" onclick="changeSkillRank('${escHtml(sk.name)}',-1)">-</button>
+        <span id="sk-inc-${CSS.escape(sk.name)}" style="display:inline-block; width:24px; text-align:center; font-weight:bold;">${inc}</span>
+        <button class="btn" style="padding:0 6px; font-size:11px; min-width:20px;" onclick="changeSkillRank('${escHtml(sk.name)}',1)">+</button>
+      </td>
+      <td style="padding:2px 4px; text-align:right; font-weight:bold; width:40px;">=+${sk.bonus + inc}</td>
+    `;
+    table.appendChild(tr);
+  }
+  list.appendChild(table);
+  updateSkillGuide();
+}
+
+function changeSkillRank(skillName, delta) {
+  const adv = state.advState;
+  const cur = adv.skillInc[skillName] || 0;
+  const newVal = Math.max(0, cur + delta);
+
+  // Check budget
+  const totalSpent = Object.values(adv.skillInc).reduce((a, b) => a + b, 0) - cur + newVal;
+  const budget = getSkillBudget();
+  if (totalSpent > budget) return; // over budget
+
+  adv.skillInc[skillName] = newVal;
+
+  // Update display
+  const span = document.getElementById(`sk-inc-${CSS.escape(skillName)}`);
+  if (span) span.textContent = newVal;
+
+  // Update total column
+  const m = state.selectedMonster;
+  const skills = parseSkills(m.skills);
+  const sk = skills.find(s => s.name === skillName);
+  if (sk) {
+    const row = span.closest('tr');
+    const totalCell = row.querySelector('td:last-child');
+    totalCell.textContent = `=+${sk.bonus + newVal}`;
+  }
+  updateSkillGuide();
+}
+
+function getSkillBudget() {
+  const m = state.selectedMonster;
+  if (!m) return 0;
+  // We'll compute bonus skill points client-side for the guide
+  // type_skill_points comes from /types endpoint (already loaded)
+  const typeInfo = state.types?.find(t => t.name === m.type);
+  const typeSkillPts = typeInfo ? typeInfo.skill_points : 2;
+  const baseInt = m.intelligence || 10;
+  const intMod = Math.floor((baseInt - 10) / 2);
+  const spPerHD = Math.max(1, typeSkillPts + intMod);
+  const baseHD = m.hd_count || 1;
+  const newHD = state.advState.newHD || baseHD;
+  return spPerHD * (newHD - baseHD);
+}
+
+function getSkillSpent() {
+  return Object.values(state.advState.skillInc).reduce((a, b) => a + b, 0);
+}
+
+function updateSkillGuide() {
+  const guide = document.getElementById('dlg-skill-guide');
+  const budget = getSkillBudget();
+  const spent = getSkillSpent();
+  const remaining = budget - spent;
+  if (budget <= 0) {
+    guide.textContent = 'No bonus skill points (no HD advancement)';
+    guide.className = 'dlg-guidance';
+  } else if (remaining > 0) {
+    guide.textContent = `Skill points: ${spent}/${budget} spent — ${remaining} remaining`;
+    guide.className = 'dlg-guidance dlg-guidance-warn';
+  } else if (remaining === 0) {
+    guide.textContent = `Skill points: ${spent}/${budget} spent — all allocated`;
+    guide.className = 'dlg-guidance dlg-guidance-ok';
+  } else {
+    guide.textContent = `Skill points: ${spent}/${budget} spent — ${-remaining} over budget!`;
+    guide.className = 'dlg-guidance dlg-guidance-warn';
   }
 }
 
@@ -860,7 +1179,7 @@ function renderMonsterTable() {
   const monsters = state.filteredMonsters;
 
   if (monsters.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="padding:10px;color:#999;font-style:italic;">No monsters found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:10px;color:#999;font-style:italic;">No monsters found.</td></tr>';
     return;
   }
 
@@ -870,6 +1189,7 @@ function renderMonsterTable() {
     let va = a[col], vb = b[col];
     if (col === 'challenge_rating') { va = crToFloat(va); vb = crToFloat(vb); }
     else if (col === 'hd_count') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+    else if (col === 'advancement') { va = hasAdvancement(va); vb = hasAdvancement(vb); }
     else { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); }
     return compareClass(va, vb);
   });
@@ -883,9 +1203,10 @@ function renderMonsterTable() {
       <td title="${escHtml(m.name)}">${escHtml(m.name)}</td>
       <td title="${escHtml(m.type || '')}">${escHtml(shortType(m.type))}</td>
       <td>${escHtml(m.size || '')}</td>
-      <td>${escHtml(String(m.challenge_rating ?? ''))}</td>
+      <td title="${escHtml(displayCR(m))}">${escHtml(displayCR(m))}</td>
       <td>${escHtml(String(m.hd_count ?? ''))}</td>
       <td title="${escHtml(m.alignment || '')}">${escHtml(shortAlign(m.alignment))}</td>
+      <td>${hasAdvancement(m.advancement)}</td>
     `;
     tr.addEventListener('click', () => selectMonster(m.id));
     tbody.appendChild(tr);
@@ -895,6 +1216,13 @@ function renderMonsterTable() {
 function shortType(type) {
   if (!type) return '';
   return type.length > 14 ? type.substring(0, 13) + '…' : type;
+}
+
+function hasAdvancement(adv) {
+  if (!adv) return 'No';
+  const s = adv.trim().toLowerCase();
+  if (s === '' || s === '-' || s === 'none') return 'No';
+  return 'Yes';
 }
 
 function shortAlign(al) {
@@ -1034,9 +1362,14 @@ async function selectMonster(id) {
       abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
       equippedArmor: '',
       equippedShield: '',
+      isMWArmor: false,
+      skillInc: {},
+      combatFeats: {},
+      impNatArmor: 0,
+      weaponFinesse: false,
     };
 
-    document.getElementById('sb-title').textContent = `${monster.name}  \u2014  CR ${monster.challenge_rating ?? '?'}`;
+    document.getElementById('sb-title').textContent = `${monster.name}  \u2014  CR ${displayCR(monster)}  \u00b7  HD ${monster.hd_count ?? '?'}`;
     document.getElementById('options-btn').disabled = false;
     document.getElementById('reset-btn').disabled = false;
     document.getElementById('copy-btn').disabled = false;
@@ -1103,7 +1436,7 @@ function buildStatBlockHTML(m, adv) {
   let html = '<div class="stat-block">';
 
   // --- Name & CR ---
-  const crDisplay = isAdv ? (adv.challenge_rating ?? '') : (m.challenge_rating ?? '');
+  const crDisplay = isAdv ? (adv.challenge_rating ?? '') : displayCR(m);
   html += `<div class="sb-name">
     <span class="sb-cr">CR ${escHtml(String(crDisplay))}</span>
     ${escHtml(m.name)}
@@ -1115,7 +1448,7 @@ function buildStatBlockHTML(m, adv) {
 
   // --- HD / HP with inline stepper ---
   const baseHD = m.hd_count || 1;
-  const maxHD = m.max_adv_next_size || baseHD;
+  const maxHD = m.max_adv_next_size || m.max_adv_base_size || baseHD;
   const curHD = isAdv ? (adv.total_hd || baseHD) : baseHD;
   const canDown = curHD > baseHD;
   const canUp = curHD < maxHD;
@@ -1231,14 +1564,35 @@ function buildStatBlockHTML(m, adv) {
   const featOverBudget = isAdv && typeof adv.max_feats === 'number' && featCount > adv.max_feats;
   html += `<div class="sb-section"><span class="sb-label">Feats (${featCount}/${maxFeats}${featOverBudget ? ' &#9888;' : ''}):</span> <span class="sb-value">${escHtml(featText || '—')}</span></div>`;
 
-  // ASI reminder badge: show unspent points when HD was advanced
+  // Reminder badges when HD was advanced
   if (isAdv) {
     const baseHD2 = m.hd_count || 1;
     const curHD2 = adv.total_hd || baseHD2;
+
+    // ASI badge
     const earned2 = Math.floor(curHD2 / 4) - Math.floor(baseHD2 / 4);
     const spent2 = asiSpent(state.advState.abilityInc);
     if (earned2 > 0 && spent2 < earned2) {
-      html += `<div class="sb-section"><span class="badge badge-blue">&#9733; ${earned2 - spent2} ASI point${earned2 - spent2 > 1 ? 's' : ''} available &mdash; use Options to assign</span></div>`;
+      const rem = earned2 - spent2;
+      html += `<div class="sb-section"><span class="badge badge-blue">&#9733; ${rem} ASI point${rem > 1 ? 's' : ''} available &mdash; use Options to assign</span></div>`;
+    }
+
+    // Feat slots badge (only for creatures that can take feats)
+    if (m.intelligence != null) {
+      const maxFeats2 = 1 + Math.floor(curHD2 / 3) + (m.bonus_feat_count || 0);
+      const usedFeats2 = countFeats(adv.feats || '');
+      const featRem = maxFeats2 - usedFeats2;
+      if (featRem > 0) {
+        html += `<div class="sb-section"><span class="badge badge-blue">&#9733; ${featRem} feat slot${featRem > 1 ? 's' : ''} available &mdash; use Options to assign</span></div>`;
+      }
+    }
+
+    // Skill points badge
+    if (isAdv && adv.bonus_skill_points > 0) {
+      const skRem = adv.bonus_skill_points - (adv.spent_skill_points || 0);
+      if (skRem > 0) {
+        html += `<div class="sb-section"><span class="badge badge-blue">&#9733; ${skRem} skill point${skRem > 1 ? 's' : ''} available &mdash; use Options to assign</span></div>`;
+      }
     }
   }
 
@@ -1304,7 +1658,7 @@ function buildStatBlockHTML(m, adv) {
     html += `<div class="sb-section"><span class="sb-label">Advancement:</span> <span class="sb-value">${escHtml(m.advancement)}</span></div>`;
   }
   if (m.level_adjustment != null && m.level_adjustment !== '') {
-    html += `<div class="sb-section"><span class="sb-label">LA:</span> <span class="sb-value">+${m.level_adjustment}</span></div>`;
+    html += `<div class="sb-section"><span class="sb-label">Level Adjustment:</span> <span class="sb-value">+${m.level_adjustment}</span></div>`;
   }
 
   html += '</div>'; // .stat-block
@@ -1374,7 +1728,7 @@ async function changeHD(delta) {
   const monster = state.selectedMonster;
   if (!monster) return;
   const baseHD = monster.hd_count;
-  const maxHD = monster.max_adv_next_size || baseHD;
+  const maxHD = monster.max_adv_next_size || monster.max_adv_base_size || baseHD;
   const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
   const newHD = curHD + delta;
   if (newHD < baseHD || newHD > maxHD) return;
@@ -1382,6 +1736,7 @@ async function changeHD(delta) {
   // If HD dropped back to base, clear ability increases — no points earned
   if (state.advState.newHD === null) {
     state.advState.abilityInc = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+    state.advState.skillInc = {};
   }
   await doAdvance();
 }
@@ -1392,8 +1747,9 @@ async function doAdvance() {
   const adv = state.advState;
 
   const newHD = adv.newHD;
+  const hasSkillInc = Object.values(adv.skillInc).some(v => v > 0);
   const hasChanges = newHD !== null || adv.acquiredFeats || adv.equippedArmor || adv.equippedShield
-    || Object.values(adv.abilityInc).some(v => v !== 0);
+    || Object.values(adv.abilityInc).some(v => v !== 0) || hasSkillInc;
 
   if (!hasChanges) {
     state.advancedResult = null;
@@ -1409,14 +1765,15 @@ async function doAdvance() {
     acquired_feats: adv.acquiredFeats || null,
     equipped_armor: adv.equippedArmor || null,
     equipped_shield: adv.equippedShield || null,
+    is_masterwork_armor: adv.isMWArmor || false,
+    skill_increases: hasSkillInc ? adv.skillInc : null,
   };
 
-  document.getElementById('sb-adv-status').textContent = 'Advancing...';
+  document.getElementById('sb-adv-status').textContent = '';
   try {
     const result = await postJSON(`${API}/monsters/advance`, body);
     state.advancedResult = result;
-    const hdDisplay = newHD ? ` (HD ${newHD})` : '';
-    document.getElementById('sb-adv-status').textContent = `Advanced${hdDisplay} \u2014 CR ${result.challenge_rating}`;
+    document.getElementById('sb-adv-status').textContent = '';
     renderSingleStatBlock(monster, result);
   } catch (err) {
     let msg = err.message;
@@ -1523,6 +1880,104 @@ function updateFeatGuide() {
     : `Feat slots: <strong>${used}/${maxFeats}</strong> &mdash; ${remaining} available`;
 }
 
+// ============================================================
+// COMBAT FEATS TABLE
+// ============================================================
+
+function populateCombatFeats() {
+  const el = document.getElementById('dlg-combat-feats');
+  const monster = state.selectedMonster;
+  if (!monster || !monster.attacks || monster.attacks.length === 0) {
+    el.innerHTML = '<span style="color:#888;">No attacks on this creature.</span>';
+    return;
+  }
+
+  // Get unique attack names (avoid duplicates like "2 claws")
+  const seen = new Set();
+  const attacks = [];
+  for (const a of monster.attacks) {
+    const name = a.att_name || 'Unknown';
+    if (!seen.has(name)) {
+      seen.add(name);
+      attacks.push({
+        name,
+        isNatural: (a.weapon_nature || '').toLowerCase() === 'natural',
+        dmgDie: a.dmg_die || '',
+        critRange: a.crit_range || '20',
+      });
+    }
+  }
+
+  // Also check base feats for already-present Weapon Focus etc.
+  const allFeatsTxt = (monster.all_feats || monster.feats || '').toLowerCase();
+  const cf = state.advState.combatFeats;
+  let html = '<table class="combat-feats-table"><thead><tr><th>Attack</th><th>Dmg</th><th>Crit</th><th title="Weapon Focus (+1 att)">WF</th><th title="Improved Natural Attack (+1 dmg die)">INA</th><th title="Improved Critical (x2 threat)">IC</th></tr></thead><tbody>';
+  for (const a of attacks) {
+    const s = cf[a.name] || { wf: false, ina: false, ic: false };
+    // Detect if base feats already include this (show disabled checked)
+    const baseWF = allFeatsTxt.includes(`weapon focus (${a.name.toLowerCase()})`);
+    const natOnly = a.isNatural ? '' : 'disabled title="Natural attacks only"';
+    html += `<tr>
+      <td>${escHtml(a.name)}</td>
+      <td>${escHtml(a.dmgDie)}</td>
+      <td>${escHtml(a.critRange)}</td>
+      <td>${baseWF
+        ? '<input type="checkbox" checked disabled title="Already in base feats">'
+        : `<input type="checkbox" data-atk="${escHtml(a.name)}" data-feat="wf" ${s.wf ? 'checked' : ''} onchange="onCombatFeatChange()">`
+      }</td>
+      <td><input type="checkbox" data-atk="${escHtml(a.name)}" data-feat="ina" ${s.ina ? 'checked' : ''} ${natOnly} onchange="onCombatFeatChange()"></td>
+      <td><input type="checkbox" data-atk="${escHtml(a.name)}" data-feat="ic" ${s.ic ? 'checked' : ''} onchange="onCombatFeatChange()"></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function onCombatFeatChange() {
+  // Read all checkboxes into state
+  const cf = {};
+  document.querySelectorAll('#dlg-combat-feats input[type=checkbox]').forEach(cb => {
+    const atk = cb.dataset.atk;
+    const feat = cb.dataset.feat;
+    if (!cf[atk]) cf[atk] = { wf: false, ina: false, ic: false };
+    cf[atk][feat] = cb.checked;
+  });
+  state.advState.combatFeats = cf;
+  syncCombatFeatsToText();
+  updateFeatGuide();
+}
+
+function onGlobalFeatChange() {
+  syncCombatFeatsToText();
+  updateFeatGuide();
+}
+
+function syncCombatFeatsToText() {
+  // Build combat feat strings and merge with any manually-typed feats
+  const cf = state.advState.combatFeats;
+  const impNat = parseInt(document.getElementById('dlg-imp-nat-armor').value) || 0;
+  const wFinesse = document.getElementById('dlg-weapon-finesse').checked;
+  const combatParts = [];
+
+  for (const [atkName, feats] of Object.entries(cf)) {
+    if (feats.wf) combatParts.push(`Weapon Focus (${atkName})`);
+    if (feats.ina) combatParts.push(`Improved Natural Attack (${atkName})`);
+    if (feats.ic) combatParts.push(`Improved Critical (${atkName})`);
+  }
+  for (let i = 0; i < impNat; i++) combatParts.push('Improved Natural Armor');
+  if (wFinesse) combatParts.push('Weapon Finesse');
+
+  // Get manual feats (anything in the text field NOT matching combat feat patterns)
+  const input = document.getElementById('dlg-feats');
+  const existing = input.value.split(',').map(f => f.trim()).filter(Boolean);
+  const combatPatterns = /^(Weapon Focus|Improved Natural Attack|Improved Critical)\s*\(.*\)$|^Improved Natural Armor$|^Weapon Finesse$/i;
+  const manualFeats = existing.filter(f => !combatPatterns.test(f));
+
+  // Combine: manual feats first, then combat feats
+  const all = [...manualFeats, ...combatParts];
+  input.value = all.join(', ');
+}
+
 function openOptionsDialog() {
   const adv = state.advState;
   document.getElementById('dlg-feats').value = adv.acquiredFeats || '';
@@ -1531,8 +1986,19 @@ function openOptionsDialog() {
   });
   document.getElementById('dlg-armor').value = adv.equippedArmor || '';
   document.getElementById('dlg-shield').value = adv.equippedShield || '';
+  document.getElementById('dlg-mw-armor').checked = adv.isMWArmor || false;
+  document.getElementById('dlg-imp-nat-armor').value = adv.impNatArmor || 0;
+  updateArmorDexNote();
+  document.getElementById('dlg-weapon-finesse').checked = adv.weaponFinesse || false;
+  // If base feats already have Weapon Finesse, show checked+disabled
+  const baseHasFinesse = ((state.selectedMonster.all_feats || state.selectedMonster.feats || '').toLowerCase()).includes('weapon finesse');
+  const wfEl = document.getElementById('dlg-weapon-finesse');
+  if (baseHasFinesse) { wfEl.checked = true; wfEl.disabled = true; }
+  else { wfEl.disabled = false; }
   document.getElementById('dlg-error').style.display = 'none';
 
+  populateCombatFeats();
+  populateSkillRanks();
   updateFeatGuide();
   updateAsiGuide();
 
@@ -1544,6 +2010,17 @@ function openOptionsDialog() {
   document.getElementById(`dlg-inc-${s}`).addEventListener('input', updateAsiGuide);
 });
 document.getElementById('dlg-feats').addEventListener('input', updateFeatGuide);
+document.getElementById('dlg-imp-nat-armor').addEventListener('input', () => {
+  syncCombatFeatsToText();
+  updateFeatGuide();
+});
+document.getElementById('dlg-weapon-finesse').addEventListener('change', () => {
+  syncCombatFeatsToText();
+  updateFeatGuide();
+});
+document.getElementById('dlg-armor').addEventListener('change', updateArmorDexNote);
+document.getElementById('dlg-shield').addEventListener('change', updateArmorDexNote);
+document.getElementById('dlg-mw-armor').addEventListener('change', updateArmorDexNote);
 
 async function applyOptions() {
   const monster = state.selectedMonster;
@@ -1558,20 +2035,41 @@ async function applyOptions() {
     incValues[s] = parseInt(document.getElementById(`dlg-inc-${s}`).value) || 0;
   });
   const spent = asiSpent(incValues);
+  const errEl = document.getElementById('dlg-error');
+
   if (spent > earned) {
-    const errEl = document.getElementById('dlg-error');
     errEl.textContent = `ASI budget exceeded: ${spent} points spent but only ${earned} earned. Reduce your ability increases.`;
     errEl.style.display = 'block';
     return;
   }
-  document.getElementById('dlg-error').style.display = 'none';
 
-  state.advState.acquiredFeats = isMindless ? '' : document.getElementById('dlg-feats').value.trim();
+  // Validate feat budget
+  if (!isMindless) {
+    const bonusFeatCount = monster ? (monster.bonus_feat_count || 0) : 0;
+    const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount;
+    const baseFeats = countFeats(monster ? (monster.all_feats || monster.feats || '') : '');
+    const newFeatsInput = document.getElementById('dlg-feats').value.trim();
+    const acquiredCount = countFeats(newFeatsInput);
+    if (baseFeats + acquiredCount > maxFeats) {
+      errEl.textContent = `Feat budget exceeded: ${baseFeats + acquiredCount} feats total but only ${maxFeats} slots available. Remove ${baseFeats + acquiredCount - maxFeats} feat(s).`;
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+
+  errEl.style.display = 'none';
+
   ['str','dex','con','int','wis','cha'].forEach(s => {
     state.advState.abilityInc[s] = incValues[s];
   });
   state.advState.equippedArmor = document.getElementById('dlg-armor').value;
   state.advState.equippedShield = document.getElementById('dlg-shield').value;
+  state.advState.isMWArmor = document.getElementById('dlg-mw-armor').checked;
+  state.advState.impNatArmor = parseInt(document.getElementById('dlg-imp-nat-armor').value) || 0;
+  state.advState.weaponFinesse = document.getElementById('dlg-weapon-finesse').checked;
+  // Sync combat feat checkboxes into the text field, then save
+  syncCombatFeatsToText();
+  state.advState.acquiredFeats = isMindless ? '' : document.getElementById('dlg-feats').value.trim();
   document.getElementById('options-dialog').close();
   await doAdvance();
 }
@@ -1587,6 +2085,10 @@ function resetAdvancement() {
     abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
     equippedArmor: '',
     equippedShield: '',
+    isMWArmor: false,
+    skillInc: {},
+    combatFeats: {},
+    impNatArmor: 0,
   };
   state.advancedResult = null;
   document.getElementById('sb-adv-status').textContent = '';
@@ -1606,7 +2108,7 @@ function copyStatBlock() {
   const lines = [];
   lines.push(m.name || (base && base.name) || '');
   lines.push(isAdv ? (m.type_line || '') : buildTypeLine(base || m));
-  lines.push(`CR: ${m.challenge_rating ?? ''}`);
+  lines.push(`CR: ${isAdv ? (m.challenge_rating ?? '') : displayCR(base || m)}`);
   lines.push('');
   if (isAdv) {
     lines.push(`HD: ${m.total_hd ?? ''} | HP: ${m.hit_points ?? ''} (avg ${m.hp_average ?? ''}) | Init: ${signedInt(m.initiative)} | Speed: ${m.speed || ''}`);

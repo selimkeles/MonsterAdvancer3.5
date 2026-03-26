@@ -134,6 +134,8 @@ class AdvancedMonster:
     base_shield: int = 0
     base_deflection: int = 0
     base_dodge: int = 0
+    armor_max_dex: Optional[int] = None  # max DEX bonus allowed by armor
+    is_masterwork_armor: bool = False     # MW armor grants +1 max DEX
 
     # Combat
     bab_type: str = "averageBAB"
@@ -162,6 +164,8 @@ class AdvancedMonster:
     special_attacks: str = ""
     special_qualities: str = ""
     skills_text: str = ""
+    skill_increases: dict = field(default_factory=dict)  # {"Climb": 2, "Hide": 1, ...}
+    type_skill_points: int = 2  # skill points per HD from type_rules
     environment: str = ""
     organization: str = ""
     treasure: str = ""
@@ -259,19 +263,53 @@ class AdvancedMonster:
         return SIZE_AC_MOD.get(self.current_size, 0)
 
     @property
+    def effective_max_dex(self) -> Optional[int]:
+        """Max DEX bonus to AC from armor, +1 if masterwork."""
+        if self.armor_max_dex is None:
+            return None
+        bonus = 1 if self.is_masterwork_armor else 0
+        return self.armor_max_dex + bonus
+
+    @property
+    def effective_dex_to_ac(self) -> int:
+        """DEX modifier capped by armor max DEX (if wearing armor)."""
+        cap = self.effective_max_dex
+        if cap is not None:
+            return min(self.dex_mod, cap)
+        return self.dex_mod
+
+    @property
+    def effective_armor(self) -> int:
+        """Armor AC bonus — halved for Tiny or smaller creatures."""
+        val = self.base_armor
+        size_idx = SIZE_ORDER.index(self.current_size) if self.current_size in SIZE_ORDER else 4
+        if size_idx <= 2:  # Fine, Diminutive, Tiny
+            val = val // 2
+        return val
+
+    @property
+    def effective_shield(self) -> int:
+        """Shield AC bonus — halved for Tiny or smaller creatures."""
+        val = self.base_shield
+        size_idx = SIZE_ORDER.index(self.current_size) if self.current_size in SIZE_ORDER else 4
+        if size_idx <= 2:  # Fine, Diminutive, Tiny
+            val = val // 2
+        return val
+
+    @property
     def total_ac(self) -> int:
-        return (10 + self.size_ac_mod + self.dex_mod + self.current_nat_armor
-                + self.base_armor + self.base_shield + self.base_deflection + self.base_dodge)
+        return (10 + self.size_ac_mod + self.effective_dex_to_ac + self.current_nat_armor
+                + self.effective_armor + self.effective_shield + self.base_deflection + self.base_dodge)
 
     @property
     def touch_ac(self) -> int:
-        return 10 + self.size_ac_mod + self.dex_mod + self.base_deflection + self.base_dodge
+        return 10 + self.size_ac_mod + self.effective_dex_to_ac + self.base_deflection + self.base_dodge
 
     @property
     def flat_footed_ac(self) -> int:
-        dex_penalty = min(self.dex_mod, 0)  # only negative dex applies to flat-footed
+        dex_penalty = min(self.effective_dex_to_ac, 0)  # only negative dex applies to flat-footed
         return (10 + self.size_ac_mod + dex_penalty + self.current_nat_armor
-                + self.base_armor + self.base_shield + self.base_deflection)
+                + self.effective_armor + self.effective_shield + self.base_deflection)
 
     @property
     def grapple(self) -> int:
@@ -397,6 +435,46 @@ class AdvancedMonster:
         return ", ".join(parts)
 
     @property
+    def skill_points_per_hd(self) -> int:
+        """Skill points gained per HD = max(1, type_base + INT_mod)."""
+        return max(1, self.type_skill_points + self.int_mod)
+
+    @property
+    def base_skill_points(self) -> int:
+        """Skill points from base HD."""
+        return self.skill_points_per_hd * self.base_hd
+
+    @property
+    def total_skill_points(self) -> int:
+        """Total skill points from all HD (monster + class levels)."""
+        monster_sp = self.skill_points_per_hd * self.current_hd
+        # 1 HD monsters replaced by class: use class skill points instead
+        if self.base_hd <= 1 and self.class_levels:
+            monster_sp = 0
+        class_sp = 0
+        for cl in self.class_levels:
+            sp_per = max(1, cl.skill_points_per_level + self.int_mod)
+            class_sp += sp_per * cl.level
+        return monster_sp + class_sp
+
+    @property
+    def bonus_skill_points(self) -> int:
+        """New skill points available from advancement."""
+        return self.total_skill_points - self.base_skill_points
+
+    @property
+    def spent_skill_points(self) -> int:
+        """Skill points allocated by user."""
+        return sum(self.skill_increases.values())
+
+    @property
+    def updated_skills_text(self) -> str:
+        """Apply skill_increases to base skills_text."""
+        if not self.skill_increases:
+            return self.skills_text
+        return apply_skill_increases(self.skills_text, self.skill_increases)
+
+    @property
     def current_cr(self) -> float:
         """CR = baseCR + INT((curHD - baseHD) / crMod)  — exact Excel formula."""
         hd_added = self.current_hd - self.base_hd
@@ -498,9 +576,15 @@ def calc_attack_roll(monster: AdvancedMonster, attack: AttackData) -> int:
     else:
         ability_bonus = monster.dex_mod
 
-    # Weapon Finesse check
-    if "Weapon Finesse" in monster.all_feats_text and attack.weapon_nature.lower() == "natural":
-        ability_bonus = max(monster.str_mod, monster.dex_mod)
+    # Weapon Finesse: use higher of STR/DEX for eligible melee attacks
+    # Eligible: natural weapons (always light) + light manufactured weapons (OH category)
+    if "Weapon Finesse" in monster.all_feats_text and attack.att_mode.lower() == "melee":
+        is_finessable = (
+            attack.weapon_nature.lower() == "natural"
+            or attack.use_category.lower() in ("weapon_oh",)
+        )
+        if is_finessable:
+            ability_bonus = max(monster.str_mod, monster.dex_mod)
 
     # Enhancement bonus
     enh = attack.att_roll_enh
@@ -536,6 +620,76 @@ def calc_damage_bonus(monster: AdvancedMonster, attack: AttackData) -> int:
     return str_bonus + enh + spec_bonus
 
 
+def parse_skills(skills_text: str) -> list[tuple[str, int]]:
+    """Parse skill text like 'Climb +13, Hide +10' into [(name, bonus), ...].
+    Handles complex names like 'Knowledge (dungeoneering) +14' and notes like '+5 underground'.
+    """
+    import re
+    if not skills_text or not skills_text.strip():
+        return []
+    results = []
+    # Split on comma, but not commas inside parentheses
+    # Strategy: split on ", " then re-join entries that don't have a +/- bonus
+    parts = re.split(r',\s*', skills_text)
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        # Match "SkillName +N" or "SkillName -N" at the start, possibly followed by notes
+        m = re.match(r'^(.+?)\s+([+-]\d+)(.*)', part)
+        if m:
+            name = m.group(1).strip()
+            bonus = int(m.group(2))
+            results.append((name, bonus))
+    return results
+
+
+def apply_skill_increases(skills_text: str, increases: dict) -> str:
+    """Apply skill rank increases to a skills text string.
+    increases = {"Climb": 2, "Hide": 1} means +2 to Climb, +1 to Hide.
+    """
+    import re
+    if not increases:
+        return skills_text
+    result = skills_text
+    for skill_name, delta in increases.items():
+        if delta == 0:
+            continue
+        # Match the skill name followed by +/- number
+        # Need to escape parentheses in skill names like "Knowledge (arcana)"
+        escaped = re.escape(skill_name)
+        pattern = rf'({escaped}\s+)([+-])(\d+)'
+        def replacer(m):
+            old_bonus = int(f"{m.group(2)}{m.group(3)}")
+            new_bonus = old_bonus + delta
+            sign = "+" if new_bonus >= 0 else ""
+            return f"{m.group(1)}{sign}{new_bonus}"
+        result = re.sub(pattern, replacer, result, count=1)
+    return result
+
+
+def double_crit_range(crit_range: str) -> str:
+    """Double the critical threat range (Improved Critical feat).
+    '20' -> '19-20', '19-20' -> '17-20', '18-20' -> '15-20'
+    """
+    s = crit_range.strip()
+    if "-" in s:
+        low = int(s.split("-")[0])
+    else:
+        low = int(s)
+    threat = 21 - low  # current threat range width
+    new_low = max(2, 21 - threat * 2)  # double it, floor at 2
+    return f"{new_low}-20" if new_low < 20 else "20"
+
+
+def has_feat_for_attack(feat_name: str, attack_name: str, feats_text: str) -> bool:
+    """Check if a weapon-specific feat exists for a given attack name (case-insensitive).
+    e.g. has_feat_for_attack('Weapon Focus', 'Claw', 'Weapon Focus (Claw), Power Attack') -> True
+    """
+    target = f"{feat_name} ({attack_name})".lower()
+    return target in feats_text.lower()
+
+
 def format_attack_text(monster: AdvancedMonster, attack: AttackData, is_full: bool = True) -> str:
     """Format a single attack line."""
     roll = calc_attack_roll(monster, attack)
@@ -549,7 +703,17 @@ def format_attack_text(monster: AdvancedMonster, attack: AttackData, is_full: bo
 
     dmg_text = f"{attack.dmg_die}{bonus_text}"
 
-    return f"{count_text}{name_plural} {roll_sign}{roll} {attack.att_mode} ({dmg_text})"
+    # Crit text
+    crit_text = ""
+    if attack.crit_range != "20" or attack.crit_mult != 2:
+        crit_parts = []
+        if attack.crit_range != "20":
+            crit_parts.append(attack.crit_range)
+        if attack.crit_mult != 2:
+            crit_parts.append(f"x{attack.crit_mult}")
+        crit_text = "/" + "/".join(crit_parts)
+
+    return f"{count_text}{name_plural} {roll_sign}{roll} {attack.att_mode} ({dmg_text}{crit_text})"
 
 
 def _build_attack_text(monster: AdvancedMonster, attacks: list) -> tuple[str, str]:
@@ -600,14 +764,32 @@ def generate_stat_block(monster: AdvancedMonster) -> dict:
         space_val = monster.space
         reach_val = monster.reach
 
-    # Scale natural attack damage one step when size changes
+    # Apply feat-based and size-based attack modifications
+    # Order matches Excel: Improved Natural Attack → Size scaling → Improved Critical
+    feats_lower = monster.all_feats_text.lower()
+    effective_attacks = list(monster.attacks)
+
+    # Step 1: Improved Natural Attack — scale damage die up one step per matching attack
+    effective_attacks = [
+        replace(a, dmg_die=scale_damage(a.dmg_die, 1))
+        if has_feat_for_attack("Improved Natural Attack", a.name, feats_lower) else a
+        for a in effective_attacks
+    ]
+
+    # Step 2: Size change — scale natural attack damage up one step
     if size_changed:
         effective_attacks = [
-            replace(a, dmg_die=scale_damage(a.dmg_die, 1)) if a.weapon_nature.lower() == "natural" else a
-            for a in monster.attacks
+            replace(a, dmg_die=scale_damage(a.dmg_die, 1))
+            if a.weapon_nature.lower() == "natural" else a
+            for a in effective_attacks
         ]
-    else:
-        effective_attacks = monster.attacks
+
+    # Step 3: Improved Critical — double threat range per matching attack
+    effective_attacks = [
+        replace(a, crit_range=double_crit_range(a.crit_range))
+        if has_feat_for_attack("Improved Critical", a.name, feats_lower) else a
+        for a in effective_attacks
+    ]
 
     # Build attack text
     standard_attack, full_attack = _build_attack_text(monster, effective_attacks)
@@ -616,14 +798,20 @@ def generate_stat_block(monster: AdvancedMonster) -> dict:
     ac_parts = []
     if monster.size_ac_mod != 0:
         ac_parts.append(f"{monster.size_ac_mod:+d} size")
-    if monster.dex_mod != 0:
-        ac_parts.append(f"{monster.dex_mod:+d} Dex")
+    dex_to_ac = monster.effective_dex_to_ac
+    if dex_to_ac != 0:
+        dex_label = "Dex"
+        if monster.effective_max_dex is not None and monster.dex_mod > monster.effective_max_dex:
+            dex_label = f"Dex (max {monster.effective_max_dex:+d})"
+        ac_parts.append(f"{dex_to_ac:+d} {dex_label}")
     if monster.current_nat_armor != 0:
         ac_parts.append(f"+{monster.current_nat_armor} natural")
-    if monster.base_armor != 0:
-        ac_parts.append(f"+{monster.base_armor} armor")
-    if monster.base_shield != 0:
-        ac_parts.append(f"+{monster.base_shield} shield")
+    eff_armor = monster.effective_armor
+    if eff_armor != 0:
+        ac_parts.append(f"+{eff_armor} armor")
+    eff_shield = monster.effective_shield
+    if eff_shield != 0:
+        ac_parts.append(f"+{eff_shield} shield")
     if monster.base_deflection != 0:
         ac_parts.append(f"+{monster.base_deflection} deflection")
     if monster.base_dodge != 0:
@@ -678,7 +866,9 @@ def generate_stat_block(monster: AdvancedMonster) -> dict:
         "cha": monster.total_cha,
         "feats": monster.all_feats_text,
         "max_feats": monster.max_feats,
-        "skills": monster.skills_text,
+        "skills": monster.updated_skills_text,
+        "bonus_skill_points": monster.bonus_skill_points,
+        "spent_skill_points": monster.spent_skill_points,
         "special_attacks": monster.special_attacks,
         "special_qualities": monster.special_qualities,
         "environment": monster.environment,

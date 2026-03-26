@@ -91,6 +91,7 @@ def get_monster(monster_id: int, db: Session = Depends(get_db)):
         environment=monster.environment,
         organization=monster.organization,
         challenge_rating=monster.challenge_rating,
+        cr_text=monster.cr_text,
         treasure=monster.treasure,
         alignment=monster.alignment,
         advancement=monster.advancement,
@@ -141,10 +142,11 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
     bab_type = type_rule.bab_progression if type_rule else "averageBAB"
     hd_type = type_rule.hd_type if type_rule else 8
     cr_mod = type_rule.cr_mod if type_rule else 3
+    type_skill_points = type_rule.skill_point_base if type_rule else 2
 
     # Determine new HD — validate against advancement range
     new_hd = req.new_hd if req.new_hd is not None else monster.hd_count
-    max_hd = monster.max_adv_next_size or (monster.hd_count * 3)
+    max_hd = monster.max_adv_next_size or monster.max_adv_base_size or monster.hd_count
     if new_hd < monster.hd_count:
         raise HTTPException(status_code=400, detail=f"HD cannot be reduced below base ({monster.hd_count})")
     if new_hd > max_hd:
@@ -199,14 +201,22 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
     # Handle equipped armor
     armor_bonus = ac_comp.base_armor if ac_comp else 0
     shield_bonus = ac_comp.base_shield if ac_comp else 0
+    armor_max_dex = None
     if req.equipped_armor:
         armor_item = db.query(Armor).filter(Armor.name == req.equipped_armor).first()
         if armor_item:
             armor_bonus = armor_item.ac_bonus
+            armor_max_dex = armor_item.max_dex
     if req.equipped_shield:
         shield_item = db.query(Armor).filter(Armor.name == req.equipped_shield).first()
         if shield_item:
             shield_bonus = shield_item.ac_bonus
+            # Shield max_dex stacks: use the lower cap if both armor and shield have one
+            if shield_item.max_dex is not None:
+                if armor_max_dex is not None:
+                    armor_max_dex = min(armor_max_dex, shield_item.max_dex)
+                else:
+                    armor_max_dex = shield_item.max_dex
 
     # Build AdvancedMonster
     adv = AdvancedMonster(
@@ -239,6 +249,8 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
         base_shield=shield_bonus,
         base_deflection=ac_comp.base_deflection if ac_comp else 0,
         base_dodge=ac_comp.base_dodge if ac_comp else 0,
+        armor_max_dex=armor_max_dex,
+        is_masterwork_armor=req.is_masterwork_armor,
         bab_type=bab_type,
         fort_type=monster.fort_save_type or "poorSave",
         ref_type=monster.ref_save_type or "poorSave",
@@ -253,6 +265,8 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
         special_attacks=monster.special_attacks or "",
         special_qualities=monster.special_qualities or "",
         skills_text=monster.skills or "",
+        skill_increases=req.skill_increases or {},
+        type_skill_points=type_skill_points,
         environment=monster.environment or "",
         organization=monster.organization or "",
         treasure=monster.treasure or "",

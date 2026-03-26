@@ -46,6 +46,7 @@ class Monster(Base):
     environment = Column(String)
     organization = Column(String)
     challenge_rating = Column(Float)
+    cr_text = Column(String)
     treasure = Column(String)
     alignment = Column(String)
     advancement = Column(Text)
