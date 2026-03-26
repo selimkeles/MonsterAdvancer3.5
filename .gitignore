@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database (generated — run extract_excel.py to rebuild)
+backend/data/monsters.db
+
+# Excel source (large binary, keep locally)
+*.xlsm
+*.xlsx
+*.xls
+
+# Extracted/scratch files
+excel_extracted/
+extract_excel_data.py
+extract_vba.py
+EXCEL_ANALYSIS_SUMMARY.md
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log
+uvicorn.log

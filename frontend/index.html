@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&D 3.5 Monster Advancer</title>
+  <style>
+    /* === Reset & Base === */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      background: #e8e8e8;
+      color: #111;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    h2 {
+      font-size: 14px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    h3 {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    /* === Layout === */
+    #app-header {
+      background: #2c2c2c;
+      color: #f0f0f0;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 2px solid #555;
+    }
+
+    #app-header span {
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    #main-layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      grid-template-rows: auto 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* === Left Panel: Stat Block === */
+    #right-panel {
+      grid-column: 1;
+      grid-row: 1 / 3;
+    }
+
+    /* === Right Panel: Search === */
+    #search-panel {
+      grid-column: 2;
+      grid-row: 1 / 3;
+      background: #f4f4f4;
+      border-left: 2px solid #aaa;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #search-header-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    #search-header {
+      padding: 8px 10px;
+      background: #ddd;
+      border-bottom: 1px solid #aaa;
+      flex-shrink: 0;
+    }
+
+    #search-header input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 4px 6px;
+      font-family: inherit;
+      font-size: 12px;
+      border: 1px solid #999;
+      background: #fff;
+    }
+
+    #filter-row, #filter-row2 {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+
+    #filter-row select, #filter-row2 select {
+      flex: 1;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 2px 4px;
+      border: 1px solid #999;
+      background: #fff;
+    }
+
+    #filter-row2 label {
+      font-size: 11px;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    #filter-row2 input[type="number"] {
+      width: 44px;
+      font-family: inherit;
+      font-size: 11px;
+      padding: 2px 3px;
+      border: 1px solid #999;
+      background: #fff;
+    }
+
+    #filter-reset-btn {
+      margin-left: auto;
+      padding: 2px 6px;
+      font-size: 11px;
+      background: #ccc;
+      border: 1px solid #999;
+      cursor: pointer;
+    }
+
+    #filter-reset-btn:hover { background: #bbb; }
+
+    #search-status {
+      font-size: 11px;
+      color: #666;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    #monster-list-container {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    #monster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    #monster-table thead th {
+      background: #ccc;
+      border: 1px solid #aaa;
+      padding: 4px 6px;
+      text-align: left;
+      position: sticky;
+      top: 0;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    #monster-table thead th:hover { background: #bbb; }
+
+    #monster-table tbody tr {
+      cursor: pointer;
+      border-bottom: 1px solid #ddd;
+    }
+
+    #monster-table tbody tr:hover { background: #e0eaf5; }
+    #monster-table tbody tr.selected { background: #c0d8f0; font-weight: bold; }
+
+    #monster-table td {
+      padding: 3px 6px;
+      border-right: 1px solid #ddd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+
+    #monster-table td:first-child { max-width: 200px; }
+
+    /* === Left Panel: Stat Block === */
+    #right-panel {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* Toolbar */
+    #sb-toolbar {
+      background: #ddd;
+      border-bottom: 2px solid #aaa;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    #sb-title {
+      font-weight: bold;
+      font-size: 13px;
+      flex: 1;
+    }
+
+    #sb-toolbar-btns {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #sb-adv-status {
+      font-size: 11px;
+      color: #555;
+    }
+
+    /* Stat block area: scrollable */
+    #stat-block-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      background: #e8e8e8;
+    }
+
+    #stat-block-content .stat-block {
+      max-width: 720px;
+    }
+
+    /* HD stepper inline in stat block */
+    .hd-stepper {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      vertical-align: middle;
+    }
+
+    .hd-stepper button {
+      width: 20px;
+      height: 20px;
+      font-size: 12px;
+      line-height: 1;
+      padding: 0;
+      border: 1px solid #888;
+      background: #ddd;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .hd-stepper button:hover:not(:disabled) { background: #bbb; }
+    .hd-stepper button:disabled { opacity: 0.4; cursor: default; }
+    .hd-stepper span { font-weight: bold; min-width: 24px; text-align: center; }
+
+    /* === Stat Block Styling === */
+    .stat-block {
+      background: #fffff0;
+      border: 2px solid #8b4513;
+      padding: 10px 12px;
+      min-height: 100px;
+    }
+
+    .stat-block-empty {
+      color: #999;
+      font-style: italic;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .sb-name {
+      font-size: 16px;
+      font-weight: bold;
+      border-bottom: 1px solid #8b4513;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+    }
+
+    .sb-type-line {
+      font-style: italic;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .sb-cr {
+      float: right;
+      font-weight: bold;
+      font-size: 14px;
+      color: #8b4513;
+    }
+
+    .sb-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 4px;
+      border-bottom: 1px dotted #ccc;
+      padding-bottom: 4px;
+    }
+
+    .sb-row:last-child { border-bottom: none; }
+
+    .sb-label {
+      font-weight: bold;
+      color: #444;
+      flex-shrink: 0;
+    }
+
+    .sb-value { color: #111; }
+
+    .sb-section {
+      margin-top: 6px;
+      border-top: 1px solid #ddd;
+      padding-top: 5px;
+    }
+
+    /* Ability score table */
+    .ability-table {
+      border-collapse: collapse;
+      margin: 6px 0;
+      font-size: 12px;
+    }
+
+    .ability-table th, .ability-table td {
+      border: 1px solid #aaa;
+      padding: 3px 8px;
+      text-align: center;
+    }
+
+    .ability-table th { background: #ddd; font-weight: bold; }
+
+    /* Comparison colors */
+    .better { color: #228B22; font-weight: bold; }
+    .worse  { color: #CC0000; font-weight: bold; }
+    .same   { color: #111; }
+
+    /* Special badges */
+    .badge {
+      display: inline-block;
+      background: #555;
+      color: #fff;
+      border-radius: 2px;
+      padding: 1px 5px;
+      font-size: 11px;
+      margin: 1px 2px;
+    }
+
+    .badge-green { background: #228B22; }
+    .badge-red   { background: #8B0000; }
+    .badge-blue  { background: #00008B; }
+
+    /* === Form / Inputs === */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px 14px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .form-group label {
+      font-weight: bold;
+      font-size: 11px;
+      color: #444;
+      text-transform: uppercase;
+    }
+
+    .form-group input,
+    .form-group select {
+      font-family: inherit;
+      font-size: 12px;
+      padding: 3px 6px;
+      border: 1px solid #999;
+      background: #fff;
+    }
+
+    .ability-inputs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0;
+    }
+
+    .ability-input-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .ability-input-group label {
+      font-weight: bold;
+      font-size: 11px;
+      color: #444;
+      text-transform: uppercase;
+    }
+
+    .ability-input-group input {
+      width: 52px;
+      text-align: center;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 3px 4px;
+      border: 1px solid #999;
+    }
+
+    /* Buttons */
+    .btn {
+      font-family: inherit;
+      font-size: 12px;
+      padding: 5px 14px;
+      border: 1px solid #888;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .btn-primary {
+      background: #2c5f8a;
+      color: #fff;
+      border-color: #1a4060;
+    }
+
+    .btn-primary:hover { background: #1a4060; }
+
+    .btn-secondary {
+      background: #888;
+      color: #fff;
+      border-color: #666;
+    }
+
+    .btn-secondary:hover { background: #666; }
+
+    .btn-small {
+      font-size: 11px;
+      padding: 3px 8px;
+    }
+
+    /* Loading spinner */
+    .loading {
+      color: #555;
+      font-style: italic;
+      padding: 10px;
+    }
+
+    /* Error */
+    .error-msg {
+      color: #CC0000;
+      background: #fff0f0;
+      border: 1px solid #CC0000;
+      padding: 6px 10px;
+      margin: 6px 0;
+    }
+
+    /* Section separator */
+    .section-sep {
+      border: none;
+      border-top: 1px solid #aaa;
+      margin: 8px 0;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #ddd; }
+    ::-webkit-scrollbar-thumb { background: #aaa; }
+    ::-webkit-scrollbar-thumb:hover { background: #888; }
+
+    /* Panel labels */
+    .panel-label {
+      background: #bbb;
+      border-bottom: 1px solid #999;
+      padding: 4px 12px;
+      font-weight: bold;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+
+    /* Options dialog */
+    dialog {
+      border: 2px solid #888;
+      background: #f8f8f0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+    }
+
+    .dlg-guidance {
+      font-size: 11px;
+      padding: 5px 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid #aaa;
+      background: #efefef;
+      color: #444;
+    }
+    .dlg-guidance.ok   { border-color: #2a7a2a; background: #efffef; color: #1a4a1a; }
+    .dlg-guidance.warn { border-color: #c00;    background: #fff0f0; color: #800; }
+
+    .skill-delta-note {
+      font-size: 11px;
+      color: #555;
+      background: #f8f8e8;
+      border: 1px solid #cca;
+      padding: 4px 8px;
+      margin-top: 4px;
+    }
+    .skill-delta-note strong { color: #333; }
+    dialog::backdrop { background: rgba(0,0,0,0.4); }
+
+    /* Responsive tweak */
+    @media (max-width: 900px) {
+      #main-layout { grid-template-columns: 1fr; }
+      #right-panel { grid-column: 1; grid-row: 1; }
+      #search-panel { grid-column: 1; grid-row: 2; border-left: none; border-top: 2px solid #aaa; max-height: 280px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- === App Header === -->
+<div id="app-header">
+  <h1>D&amp;D 3.5 Monster Advancer</h1>
+  <span id="header-status">Loading...</span>
+</div>
+
+<!-- === Main Layout === -->
+<div id="main-layout">
+
+  <!-- === Left Panel: Stat Block === -->
+  <div id="right-panel">
+
+    <!-- Toolbar -->
+    <div id="sb-toolbar">
+      <span id="sb-title">Select a monster from the list</span>
+      <div id="sb-toolbar-btns">
+        <span id="sb-adv-status"></span>
+        <button id="options-btn" class="btn btn-small" disabled onclick="openOptionsDialog()">Options &#9662;</button>
+        <button id="reset-btn" class="btn btn-small btn-secondary" disabled onclick="resetAdvancement()">Reset</button>
+        <button id="copy-btn" class="btn btn-small btn-secondary" disabled onclick="copyStatBlock()">Copy</button>
+      </div>
+    </div>
+
+    <!-- Single Stat Block Area -->
+    <div id="stat-block-area">
+      <div id="stat-block-content">
+        <div class="stat-block-empty">Select a monster from the list.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- === Right Panel: Search === -->
+  <div id="search-panel">
+    <div id="search-header">
+      <div id="search-header-title">
+        <h2>Monster Search</h2>
+        <span id="search-status">Loading monsters...</span>
+      </div>
+      <input type="text" id="search-input" placeholder="Search by name..." autocomplete="off">
+      <div id="filter-row">
+        <select id="filter-type"><option value="">All Types</option></select>
+        <select id="filter-size"><option value="">All Sizes</option></select>
+      </div>
+      <div id="filter-row2">
+        <label>CR:</label>
+        <input type="number" id="filter-cr-min" placeholder="min" min="0" max="30" step="0.5">
+        <span>–</span>
+        <input type="number" id="filter-cr-max" placeholder="max" min="0" max="30" step="0.5">
+        <label>HD:</label>
+        <input type="number" id="filter-hd-min" placeholder="min" min="1" max="40">
+        <span>–</span>
+        <input type="number" id="filter-hd-max" placeholder="max" min="1" max="40">
+        <button id="filter-reset-btn" title="Clear filters">✕</button>
+      </div>
+    </div>
+    <div id="monster-list-container">
+      <table id="monster-table">
+        <thead>
+          <tr>
+            <th data-col="name">Name</th>
+            <th data-col="type">Type</th>
+            <th data-col="size">Size</th>
+            <th data-col="challenge_rating">CR</th>
+            <th data-col="hd_count">HD</th>
+            <th data-col="alignment">Align</th>
+          </tr>
+        </thead>
+        <tbody id="monster-table-body">
+          <tr><td colspan="6" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- end main-layout -->
+
+<!-- ============================================================ -->
+<!-- OPTIONS DIALOG                                               -->
+<!-- ============================================================ -->
+<dialog id="options-dialog">
+  <div style="padding:12px; min-width:380px; max-width:500px;">
+    <h3 style="margin:0 0 10px 0; font-size:14px; text-transform:uppercase; letter-spacing:1px;">Advancement Options</h3>
+    <div id="dlg-error" class="error-msg" style="display:none;"></div>
+
+    <div class="form-group" style="margin-bottom:6px;">
+      <label>Acquired Feats (comma-separated)</label>
+      <div id="dlg-feat-guide" class="dlg-guidance" style="margin-top:4px; margin-bottom:4px;"></div>
+      <input type="text" id="dlg-feats" list="feats-datalist" placeholder="e.g. Power Attack, Cleave" style="width:100%;">
+      <datalist id="feats-datalist"></datalist>
+    </div>
+
+    <div style="margin-bottom:10px;">
+      <label style="font-weight:bold; font-size:11px; color:#444; text-transform:uppercase; display:block; margin-bottom:4px;">Ability Score Increases (+bonus)</label>
+      <div id="dlg-asi-guide" class="dlg-guidance" style="margin-bottom:6px;"></div>
+      <div class="ability-inputs">
+        <div class="ability-input-group"><label>Str</label><input type="number" id="dlg-inc-str" value="0" min="0" max="20"></div>
+        <div class="ability-input-group"><label>Dex</label><input type="number" id="dlg-inc-dex" value="0" min="0" max="20"></div>
+        <div class="ability-input-group"><label>Con</label><input type="number" id="dlg-inc-con" value="0" min="0" max="20"></div>
+        <div class="ability-input-group"><label>Int</label><input type="number" id="dlg-inc-int" value="0" min="0" max="20"></div>
+        <div class="ability-input-group"><label>Wis</label><input type="number" id="dlg-inc-wis" value="0" min="0" max="20"></div>
+        <div class="ability-input-group"><label>Cha</label><input type="number" id="dlg-inc-cha" value="0" min="0" max="20"></div>
+      </div>
+    </div>
+
+    <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:12px;">
+      <div class="form-group">
+        <label>Equipped Armor</label>
+        <select id="dlg-armor"><option value="">-- none --</option></select>
+      </div>
+      <div class="form-group">
+        <label>Equipped Shield</label>
+        <select id="dlg-shield"><option value="">-- none --</option></select>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn btn-primary" onclick="applyOptions()">Apply</button>
+      <button class="btn" onclick="document.getElementById('options-dialog').close()">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+// ============================================================
+// CONSTANTS & STATE
+// ============================================================
+const API = 'http://localhost:8000/api';
+
+const state = {
+  allMonsters: [],         // full list from API
+  filteredMonsters: [],    // after search filter
+  sortCol: 'name',
+  sortAsc: true,
+  selectedMonsterId: null,
+  selectedMonster: null,   // full MonsterDetail
+  advancedResult: null,    // StatBlockResponse
+  sizes: [],
+  feats: [],
+  classes: [],
+  armor: [],
+  searchDebounce: null,
+  advState: {
+    newHD: null,           // null = use base
+    acquiredFeats: '',
+    abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+    equippedArmor: '',
+    equippedShield: '',
+  },
+};
+
+// ============================================================
+// UTILITIES
+// ============================================================
+
+function abilityMod(score) {
+  if (score == null || score === '' || score === '-') return null;
+  return Math.floor((parseInt(score) - 10) / 2);
+}
+
+function formatMod(score) {
+  const m = abilityMod(score);
+  if (m == null) return '';
+  return m >= 0 ? `(+${m})` : `(${m})`;
+}
+
+function signedInt(n) {
+  if (n == null) return '';
+  const i = parseInt(n);
+  return i >= 0 ? `+${i}` : `${i}`;
+}
+
+function parseIntSafe(v) {
+  const n = parseInt(v);
+  return isNaN(n) ? null : n;
+}
+
+function compareClass(a, b) {
+  if (a > b) return state.sortAsc ? 1 : -1;
+  if (a < b) return state.sortAsc ? -1 : 1;
+  return 0;
+}
+
+function crToFloat(cr) {
+  if (cr == null) return 0;
+  const s = String(cr).trim();
+  if (s.includes('/')) {
+    const [num, den] = s.split('/');
+    return parseFloat(num) / parseFloat(den);
+  }
+  return parseFloat(s) || 0;
+}
+
+function computeSave(hd, saveType, abilMod) {
+  const base = (saveType === 'goodSave') ? (2 + Math.floor(hd / 2)) : Math.floor(hd / 3);
+  return base + (abilMod || 0);
+}
+
+function computeBaseSaves(m) {
+  const fort = computeSave(m.hd_count, m.fort_save_type, abilityMod(m.con));
+  const ref  = computeSave(m.hd_count, m.ref_save_type, abilityMod(m.dex));
+  const will = computeSave(m.hd_count, m.will_save_type, abilityMod(m.wis));
+  return { fort, ref, will };
+}
+
+// ============================================================
+// API CALLS
+// ============================================================
+
+async function fetchJSON(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+  return resp.json();
+}
+
+async function postJSON(url, body) {
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(text);
+  }
+  return resp.json();
+}
+
+// ============================================================
+// INITIALISATION
+// ============================================================
+
+async function init() {
+  setHeaderStatus('Loading data...');
+  try {
+    const [monsters, sizes, feats, classes, armor] = await Promise.all([
+      fetchJSON(`${API}/monsters?limit=600`),
+      fetchJSON(`${API}/sizes`),
+      fetchJSON(`${API}/feats`),
+      fetchJSON(`${API}/classes`),
+      fetchJSON(`${API}/armor`),
+    ]);
+
+    state.allMonsters = monsters;
+    state.filteredMonsters = [...monsters];
+    state.sizes = sizes;
+    state.feats = feats;
+    state.classes = classes;
+    state.armor = armor;
+
+    populateFeatDatalist();
+    populateArmorSelects();
+    populateFilterDropdowns();
+    renderMonsterTable();
+
+    setHeaderStatus(`${monsters.length} monsters loaded.`);
+    document.getElementById('search-status').textContent = `${monsters.length} monsters`;
+
+    // Restore last selected monster
+    const lastId = localStorage.getItem('lastMonsterId');
+    if (lastId) {
+      const id = parseInt(lastId);
+      const found = monsters.find(m => m.id === id);
+      if (found) {
+        await selectMonster(id);
+      }
+    }
+
+  } catch (err) {
+    setHeaderStatus('Error loading data: ' + err.message);
+    document.getElementById('search-status').textContent = 'Error';
+    console.error(err);
+  }
+}
+
+function setHeaderStatus(msg) {
+  document.getElementById('header-status').textContent = msg;
+}
+
+// ============================================================
+// POPULATE SELECTS
+// ============================================================
+
+function populateFeatDatalist() {
+  const dl = document.getElementById('feats-datalist');
+  dl.innerHTML = '';
+  for (const f of state.feats) {
+    const opt = document.createElement('option');
+    opt.value = f;
+    dl.appendChild(opt);
+  }
+}
+
+function populateArmorSelects() {
+  const armorSel = document.getElementById('dlg-armor');
+  const shieldSel = document.getElementById('dlg-shield');
+  armorSel.innerHTML = '<option value="">-- none --</option>';
+  shieldSel.innerHTML = '<option value="">-- none --</option>';
+
+  for (const item of state.armor) {
+    const opt = document.createElement('option');
+    opt.value = item.name;
+    opt.textContent = `${item.name} (AC+${item.ac_bonus})`;
+    if (item.category === 'Shield') {
+      shieldSel.appendChild(opt);
+    } else {
+      armorSel.appendChild(opt.cloneNode(true));
+    }
+  }
+}
+
+// ============================================================
+// MONSTER TABLE
+// ============================================================
+
+function renderMonsterTable() {
+  const tbody = document.getElementById('monster-table-body');
+  const monsters = state.filteredMonsters;
+
+  if (monsters.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:10px;color:#999;font-style:italic;">No monsters found.</td></tr>';
+    return;
+  }
+
+  // Sort
+  const col = state.sortCol;
+  monsters.sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (col === 'challenge_rating') { va = crToFloat(va); vb = crToFloat(vb); }
+    else if (col === 'hd_count') { va = parseFloat(va) || 0; vb = parseFloat(vb) || 0; }
+    else { va = String(va || '').toLowerCase(); vb = String(vb || '').toLowerCase(); }
+    return compareClass(va, vb);
+  });
+
+  tbody.innerHTML = '';
+  for (const m of monsters) {
+    const tr = document.createElement('tr');
+    if (m.id === state.selectedMonsterId) tr.classList.add('selected');
+    tr.dataset.id = m.id;
+    tr.innerHTML = `
+      <td title="${escHtml(m.name)}">${escHtml(m.name)}</td>
+      <td title="${escHtml(m.type || '')}">${escHtml(shortType(m.type))}</td>
+      <td>${escHtml(m.size || '')}</td>
+      <td>${escHtml(String(m.challenge_rating ?? ''))}</td>
+      <td>${escHtml(String(m.hd_count ?? ''))}</td>
+      <td title="${escHtml(m.alignment || '')}">${escHtml(shortAlign(m.alignment))}</td>
+    `;
+    tr.addEventListener('click', () => selectMonster(m.id));
+    tbody.appendChild(tr);
+  }
+}
+
+function shortType(type) {
+  if (!type) return '';
+  return type.length > 14 ? type.substring(0, 13) + '…' : type;
+}
+
+function shortAlign(al) {
+  if (!al) return '';
+  const s = al.toLowerCase();
+  if (s.includes('lawful good'))    return 'LG';
+  if (s.includes('lawful neutral')) return 'LN';
+  if (s.includes('lawful evil'))    return 'LE';
+  if (s.includes('neutral good'))   return 'NG';
+  if (s.includes('neutral evil'))   return 'NE';
+  if (s.includes('chaotic good'))   return 'CG';
+  if (s.includes('chaotic neutral'))return 'CN';
+  if (s.includes('chaotic evil'))   return 'CE';
+  if (s.includes('neutral'))        return 'N';
+  if (s.includes('any'))            return 'Any';
+  if (s.includes('none'))           return '—';
+  return al.length > 5 ? al.substring(0, 4) + '…' : al;
+}
+
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Sort column headers
+document.querySelectorAll('#monster-table thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (state.sortCol === col) {
+      state.sortAsc = !state.sortAsc;
+    } else {
+      state.sortCol = col;
+      state.sortAsc = true;
+    }
+    renderMonsterTable();
+  });
+});
+
+// Populate filter dropdowns from loaded data
+function populateFilterDropdowns() {
+  const types = [...new Set(state.allMonsters.map(m => m.type).filter(Boolean))].sort();
+  const typeSel = document.getElementById('filter-type');
+  types.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t; o.textContent = t;
+    typeSel.appendChild(o);
+  });
+
+  // Size order matches SRD progression
+  const sizeOrder = ['Fine','Diminutive','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal'];
+  const presentSizes = new Set(state.allMonsters.map(m => m.size).filter(Boolean));
+  const sizeSel = document.getElementById('filter-size');
+  sizeOrder.filter(s => presentSizes.has(s)).forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sizeSel.appendChild(o);
+  });
+}
+
+function applyFilters() {
+  const q    = document.getElementById('search-input').value.trim().toLowerCase();
+  const type = document.getElementById('filter-type').value;
+  const size = document.getElementById('filter-size').value;
+  const crMin = parseFloat(document.getElementById('filter-cr-min').value);
+  const crMax = parseFloat(document.getElementById('filter-cr-max').value);
+  const hdMin = parseInt(document.getElementById('filter-hd-min').value);
+  const hdMax = parseInt(document.getElementById('filter-hd-max').value);
+
+  state.filteredMonsters = state.allMonsters.filter(m => {
+    if (q && !m.name.toLowerCase().includes(q) && !(m.type||'').toLowerCase().includes(q)) return false;
+    if (type && m.type !== type) return false;
+    if (size && m.size !== size) return false;
+    if (!isNaN(crMin) && (m.challenge_rating ?? 0) < crMin) return false;
+    if (!isNaN(crMax) && (m.challenge_rating ?? 0) > crMax) return false;
+    if (!isNaN(hdMin) && (m.hd_count ?? 0) < hdMin) return false;
+    if (!isNaN(hdMax) && (m.hd_count ?? 0) > hdMax) return false;
+    return true;
+  });
+
+  document.getElementById('search-status').textContent = `${state.filteredMonsters.length} monsters`;
+  renderMonsterTable();
+}
+
+function resetFilters() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-size').value = '';
+  document.getElementById('filter-cr-min').value = '';
+  document.getElementById('filter-cr-max').value = '';
+  document.getElementById('filter-hd-min').value = '';
+  document.getElementById('filter-hd-max').value = '';
+  applyFilters();
+}
+
+// Wire up all filter inputs
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(state.searchDebounce);
+  state.searchDebounce = setTimeout(applyFilters, 300);
+});
+['filter-type','filter-size'].forEach(id =>
+  document.getElementById(id).addEventListener('change', applyFilters)
+);
+['filter-cr-min','filter-cr-max','filter-hd-min','filter-hd-max'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => {
+    clearTimeout(state.searchDebounce);
+    state.searchDebounce = setTimeout(applyFilters, 400);
+  })
+);
+document.getElementById('filter-reset-btn').addEventListener('click', resetFilters);
+
+// ============================================================
+// SELECT MONSTER
+// ============================================================
+
+async function selectMonster(id) {
+  state.selectedMonsterId = id;
+  localStorage.setItem('lastMonsterId', id);
+
+  document.querySelectorAll('#monster-table-body tr').forEach(tr => {
+    tr.classList.toggle('selected', parseInt(tr.dataset.id) === id);
+  });
+
+  document.getElementById('stat-block-content').innerHTML = '<div class="loading">Loading...</div>';
+
+  try {
+    const monster = await fetchJSON(`${API}/monsters/${id}`);
+    state.selectedMonster = monster;
+    state.advancedResult = null;
+    // Reset advancement state
+    state.advState = {
+      newHD: null,
+      acquiredFeats: '',
+      abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+      equippedArmor: '',
+      equippedShield: '',
+    };
+
+    document.getElementById('sb-title').textContent = `${monster.name}  \u2014  CR ${monster.challenge_rating ?? '?'}`;
+    document.getElementById('options-btn').disabled = false;
+    document.getElementById('reset-btn').disabled = false;
+    document.getElementById('copy-btn').disabled = false;
+    document.getElementById('sb-adv-status').textContent = '';
+
+    renderSingleStatBlock(monster, null);
+  } catch (err) {
+    document.getElementById('stat-block-content').innerHTML =
+      `<div class="error-msg">Error loading monster: ${escHtml(err.message)}</div>`;
+    console.error(err);
+  }
+}
+
+// ============================================================
+// SINGLE STAT BLOCK RENDERER
+// ============================================================
+
+function renderSingleStatBlock(base, adv) {
+  const el = document.getElementById('stat-block-content');
+  el.innerHTML = buildStatBlockHTML(base, adv);
+}
+
+// Build a human-readable note about ability modifier changes (for skill adjustment guidance)
+const SKILL_ABILITY_MAP = {
+  Str: ['Climb', 'Jump', 'Swim'],
+  Dex: ['Balance', 'Escape Artist', 'Hide', 'Move Silently', 'Open Lock', 'Sleight of Hand', 'Tumble', 'Ride'],
+  Con: [],
+  Int: ['Appraise', 'Craft', 'Decipher Script', 'Disable Device', 'Forgery', 'Knowledge', 'Search', 'Spellcraft'],
+  Wis: ['Concentration', 'Heal', 'Listen', 'Profession', 'Sense Motive', 'Spot', 'Survival'],
+  Cha: ['Bluff', 'Diplomacy', 'Disguise', 'Gather Information', 'Handle Animal', 'Intimidate', 'Perform', 'Use Magic Device'],
+};
+
+function buildAbilityDeltaNote(base, adv) {
+  const keys = [
+    { label: 'Str', bk: 'strength', ak: 'strength' },
+    { label: 'Dex', bk: 'dex',      ak: 'dex' },
+    { label: 'Con', bk: 'con',      ak: 'con' },
+    { label: 'Int', bk: 'intelligence', ak: 'intelligence' },
+    { label: 'Wis', bk: 'wis',      ak: 'wis' },
+    { label: 'Cha', bk: 'cha',      ak: 'cha' },
+  ];
+  const parts = [];
+  for (const k of keys) {
+    const bval = parseInt(base[k.bk]);
+    const aval = parseInt(adv[k.ak]);
+    if (isNaN(bval) || isNaN(aval)) continue;
+    const bmod = Math.floor((bval - 10) / 2);
+    const amod = Math.floor((aval - 10) / 2);
+    const delta = amod - bmod;
+    if (delta === 0) continue;
+    const skills = SKILL_ABILITY_MAP[k.label];
+    const skillHint = skills && skills.length ? ` (${skills.slice(0,3).join(', ')}…)` : '';
+    parts.push(`${k.label} mod ${delta > 0 ? '+' : ''}${delta}${skillHint}`);
+  }
+  return parts.join('; ');
+}
+
+function buildStatBlockHTML(m, adv) {
+  // m = MonsterDetail (always the base monster)
+  // adv = StatBlockResponse or null
+
+  const isAdv = adv !== null;
+
+  let html = '<div class="stat-block">';
+
+  // --- Name & CR ---
+  const crDisplay = isAdv ? (adv.challenge_rating ?? '') : (m.challenge_rating ?? '');
+  html += `<div class="sb-name">
+    <span class="sb-cr">CR ${escHtml(String(crDisplay))}</span>
+    ${escHtml(m.name)}
+  </div>`;
+
+  // --- Type line ---
+  const typeLine = isAdv ? (adv.type_line || '') : buildTypeLine(m);
+  html += `<div class="sb-type-line">${escHtml(typeLine)}</div>`;
+
+  // --- HD / HP with inline stepper ---
+  const baseHD = m.hd_count || 1;
+  const maxHD = m.max_adv_next_size || baseHD;
+  const curHD = isAdv ? (adv.total_hd || baseHD) : baseHD;
+  const canDown = curHD > baseHD;
+  const canUp = curHD < maxHD;
+  const hdStepper = `<span class="hd-stepper">` +
+    `<button onclick="changeHD(-1)" ${canDown ? '' : 'disabled'}>&#9660;</button>` +
+    `<span>${curHD}</span>` +
+    `<button onclick="changeHD(+1)" ${canUp ? '' : 'disabled'}>&#9650;</button>` +
+    `</span>`;
+
+  html += '<div class="sb-row">';
+  // HD item with stepper
+  html += `<span><span class="sb-label">HD:</span> ${hdStepper}`;
+  if (isAdv) {
+    const baseHP = hpValue(m);
+    const advHP = adv.hp_average != null ? adv.hp_average : parseIntSafe(String(adv.hit_points || ''));
+    const hpCls = compareVal(advHP, baseHP, true);
+    html += ` <span class="sb-value ${hpCls}">${escHtml(adv.hit_points || '')}</span>`;
+  } else {
+    html += ` <span class="sb-value">${escHtml(m.hit_dice || (baseHD + 'd?'))}</span>`;
+  }
+  html += `</span>`;
+
+  // Init & Speed
+  if (isAdv) {
+    html += statItem('Init', escHtml(signedInt(adv.initiative)));
+    html += statItem('Speed', escHtml(adv.speed || ''));
+    html += statItem('Space/Reach', escHtml(adv.space_reach || ''));
+  } else {
+    html += statItem('Init', escHtml(signedInt(m.initiative)));
+    html += statItem('Speed', escHtml(m.speed || ''));
+    html += statItem('Space/Reach', escHtml(`${m.space || ''}/${m.reach1 || ''}`));
+  }
+  html += '</div>';
+
+  // --- AC ---
+  html += '<div class="sb-row">';
+  if (isAdv) {
+    html += statCompare('AC', adv.total_ac, baseACValue(m), true);
+    html += statItem('Touch', escHtml(String(adv.touch_ac ?? '')));
+    html += statItem('Flat-footed', escHtml(String(adv.flat_footed_ac ?? '')));
+  } else {
+    const acParts = parseBaseAC(m.armor_class);
+    html += statItem('AC', escHtml(m.armor_class || ''));
+    html += statItem('Touch', escHtml(String(acParts.touch)));
+    html += statItem('Flat-footed', escHtml(String(acParts.flatFooted)));
+  }
+  html += '</div>';
+
+  // --- BAB / Grapple ---
+  html += '<div class="sb-row">';
+  if (isAdv) {
+    html += statCompare('BAB', adv.base_attack, parseIntSafe(m.base_attack), true);
+    html += statCompare('Grapple', adv.grapple, parseIntSafe(m.grapple), true);
+  } else {
+    html += statItem('BAB', escHtml(signedInt(m.base_attack)));
+    html += statItem('Grapple', escHtml(signedInt(m.grapple)));
+  }
+  html += '</div>';
+
+  // --- Saves ---
+  html += '<div class="sb-row">';
+  if (isAdv) {
+    const baseSaves = computeBaseSaves(m);
+    html += statCompare('Fort', adv.fort_save, baseSaves.fort, true);
+    html += statCompare('Ref', adv.ref_save, baseSaves.ref, true);
+    html += statCompare('Will', adv.will_save, baseSaves.will, true);
+  } else {
+    const saves = computeBaseSaves(m);
+    html += statItem('Fort', escHtml(signedInt(saves.fort)));
+    html += statItem('Ref', escHtml(signedInt(saves.ref)));
+    html += statItem('Will', escHtml(signedInt(saves.will)));
+    if (m.fort_save_type) {
+      html += `<span class="sb-value" style="font-size:11px; color:#666;">[Fort:${escHtml(m.fort_save_type)} Ref:${escHtml(m.ref_save_type)} Will:${escHtml(m.will_save_type)}]</span>`;
+    }
+  }
+  html += '</div>';
+
+  // --- Ability Scores ---
+  html += '<div class="sb-section">';
+  html += '<table class="ability-table"><thead><tr>';
+  ['Str','Dex','Con','Int','Wis','Cha'].forEach(a => {
+    html += `<th>${a}</th>`;
+  });
+  html += '</tr></thead><tbody><tr>';
+  const abilKeys = ['strength','dex','con','intelligence','wis','cha'];
+  for (const k of abilKeys) {
+    const val = isAdv ? adv[k] : m[k];
+    const display = (val == null || val === '') ? '—' : `${val} ${formatMod(val)}`;
+    if (isAdv) {
+      const bval = m[k];
+      const cls = compareVal(parseInt(val), parseInt(bval), true);
+      html += `<td class="${cls}">${escHtml(display)}</td>`;
+    } else {
+      html += `<td>${escHtml(display)}</td>`;
+    }
+  }
+  html += '</tr></tbody></table>';
+  html += '</div>';
+
+  // --- Attacks ---
+  const attackSrc = isAdv ? adv : m;
+  if (attackSrc.attack) {
+    html += `<div class="sb-section"><span class="sb-label">Attack:</span> <span class="sb-value">${escHtml(attackSrc.attack)}</span></div>`;
+  }
+  if (attackSrc.full_attack) {
+    html += `<div class="sb-section"><span class="sb-label">Full Attack:</span> <span class="sb-value">${escHtml(attackSrc.full_attack)}</span></div>`;
+  }
+
+  // --- Feats ---
+  const featText = isAdv ? (adv.feats || '') : (m.all_feats || m.feats || '');
+  const featCount = featText ? featText.split(',').filter(f => f.trim()).length : 0;
+  const maxFeats = isAdv ? (adv.max_feats ?? '?') : (1 + Math.floor((m.hd_count || 1) / 3) + (m.bonus_feat_count || 0));
+  const featOverBudget = isAdv && typeof adv.max_feats === 'number' && featCount > adv.max_feats;
+  html += `<div class="sb-section"><span class="sb-label">Feats (${featCount}/${maxFeats}${featOverBudget ? ' &#9888;' : ''}):</span> <span class="sb-value">${escHtml(featText || '—')}</span></div>`;
+
+  // ASI reminder badge: show unspent points when HD was advanced
+  if (isAdv) {
+    const baseHD2 = m.hd_count || 1;
+    const curHD2 = adv.total_hd || baseHD2;
+    const earned2 = Math.floor(curHD2 / 4) - Math.floor(baseHD2 / 4);
+    const spent2 = asiSpent(state.advState.abilityInc);
+    if (earned2 > 0 && spent2 < earned2) {
+      html += `<div class="sb-section"><span class="badge badge-blue">&#9733; ${earned2 - spent2} ASI point${earned2 - spent2 > 1 ? 's' : ''} available &mdash; use Options to assign</span></div>`;
+    }
+  }
+
+  // --- Skills ---
+  const skillSrc = isAdv ? adv : m;
+  if (skillSrc.skills) {
+    html += `<div class="sb-section"><span class="sb-label">Skills:</span> <span class="sb-value">${escHtml(skillSrc.skills)}</span>`;
+    // Show ability mod delta note when advancement changes ability scores
+    if (isAdv) {
+      const deltas = buildAbilityDeltaNote(m, adv);
+      if (deltas) {
+        html += `<div class="skill-delta-note"><strong>Ability mod changes:</strong> ${escHtml(deltas)}<br><em>Adjust skill totals accordingly (not auto-recalculated).</em></div>`;
+      }
+    }
+    html += `</div>`;
+  }
+
+  // --- Special Attacks ---
+  const specAtk = isAdv ? adv.special_attacks : m.special_attacks;
+  if (specAtk) {
+    html += `<div class="sb-section"><span class="sb-label">Special Attacks:</span> <span class="sb-value">${escHtml(specAtk)}</span></div>`;
+  }
+
+  // --- Special Qualities ---
+  const specQ = isAdv ? adv.special_qualities : m.special_qualities;
+  if (specQ) {
+    html += `<div class="sb-section"><span class="sb-label">Special Qualities:</span> <span class="sb-value">${escHtml(specQ)}</span></div>`;
+  }
+
+  // --- Advanced-only extras ---
+  if (isAdv) {
+    if (adv.sneak_attack_dice > 0) {
+      html += `<div class="sb-section"><span class="badge badge-red">Sneak Attack +${adv.sneak_attack_dice}d6</span></div>`;
+    }
+    if (adv.barbarian_rage_per_day > 0) {
+      html += `<div class="sb-section"><span class="badge badge-blue">Rage ${adv.barbarian_rage_per_day}/day</span></div>`;
+    }
+    if (adv.damage_reduction) {
+      html += `<div class="sb-section"><span class="badge">DR: ${escHtml(String(adv.damage_reduction))}</span></div>`;
+    }
+    if (adv.class_features && adv.class_features.length > 0) {
+      html += `<div class="sb-section"><span class="sb-label">Class Features:</span><br>`;
+      for (const cf of adv.class_features) {
+        html += `<span class="badge badge-green">${escHtml(cf)}</span> `;
+      }
+      html += '</div>';
+    }
+    if (adv.class_levels) {
+      html += `<div class="sb-section"><span class="sb-label">Class Levels:</span> <span class="sb-value">${escHtml(adv.class_levels)}</span></div>`;
+    }
+  }
+
+  // --- CR / Alignment / Environment ---
+  const infoSrc = isAdv ? adv : m;
+  html += `<div class="sb-section sb-row">`;
+  html += statItem('Align', escHtml(infoSrc.alignment || m.alignment || ''));
+  html += statItem('Env', escHtml(shortEnv(m.environment || '')));
+  html += statItem('Org', escHtml(m.organization || ''));
+  html += statItem('Treasure', escHtml(m.treasure || ''));
+  html += '</div>';
+
+  if (m.advancement) {
+    html += `<div class="sb-section"><span class="sb-label">Advancement:</span> <span class="sb-value">${escHtml(m.advancement)}</span></div>`;
+  }
+  if (m.level_adjustment != null && m.level_adjustment !== '') {
+    html += `<div class="sb-section"><span class="sb-label">LA:</span> <span class="sb-value">+${m.level_adjustment}</span></div>`;
+  }
+
+  html += '</div>'; // .stat-block
+  return html;
+}
+
+// Helper: build type line for base monster
+function buildTypeLine(m) {
+  let line = `${m.size || ''} ${m.type || ''}`;
+  if (m.descriptor) line += ` (${m.descriptor})`;
+  return line.trim();
+}
+
+// Helper: build stat item span
+function statItem(label, value) {
+  return `<span><span class="sb-label">${label}:</span> <span class="sb-value">${value}</span></span>`;
+}
+
+// Helper: stat compare (highlights vs base)
+function statCompare(label, newVal, baseVal, higherIsBetter) {
+  const cls = compareVal(parseIntSafe(newVal), parseIntSafe(baseVal), higherIsBetter);
+  const display = newVal != null ? signedInt(newVal) : '—';
+  return `<span><span class="sb-label">${label}:</span> <span class="sb-value ${cls}">${escHtml(String(display))}</span></span>`;
+}
+
+function compareVal(newVal, baseVal, higherIsBetter) {
+  if (newVal == null || baseVal == null) return 'same';
+  if (newVal > baseVal) return higherIsBetter ? 'better' : 'worse';
+  if (newVal < baseVal) return higherIsBetter ? 'worse' : 'better';
+  return 'same';
+}
+
+function hpValue(m) {
+  if (m.hp_average != null) return m.hp_average;
+  const hp = m.hit_points;
+  if (hp == null) return null;
+  const n = parseIntSafe(String(hp).replace(/[^\d-]/g, ''));
+  return n;
+}
+
+function baseACValue(m) {
+  if (!m.armor_class) return null;
+  const m2 = String(m.armor_class).match(/^(\d+)/);
+  return m2 ? parseInt(m2[1]) : null;
+}
+
+function parseBaseAC(acStr) {
+  if (!acStr) return { touch: '', flatFooted: '' };
+  const touchMatch = acStr.match(/touch\s+(\d+)/i);
+  const ffMatch = acStr.match(/flat.footed\s+(\d+)/i);
+  return {
+    touch: touchMatch ? touchMatch[1] : '',
+    flatFooted: ffMatch ? ffMatch[1] : '',
+  };
+}
+
+function shortEnv(env) {
+  if (!env) return '';
+  return env.length > 20 ? env.substring(0, 19) + '…' : env;
+}
+
+// ============================================================
+// HD STEPPER & ADVANCE
+// ============================================================
+
+async function changeHD(delta) {
+  const monster = state.selectedMonster;
+  if (!monster) return;
+  const baseHD = monster.hd_count;
+  const maxHD = monster.max_adv_next_size || baseHD;
+  const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
+  const newHD = curHD + delta;
+  if (newHD < baseHD || newHD > maxHD) return;
+  state.advState.newHD = newHD === baseHD ? null : newHD;
+  // If HD dropped back to base, clear ability increases — no points earned
+  if (state.advState.newHD === null) {
+    state.advState.abilityInc = { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 };
+  }
+  await doAdvance();
+}
+
+async function doAdvance() {
+  const monster = state.selectedMonster;
+  if (!monster) return;
+  const adv = state.advState;
+
+  const newHD = adv.newHD;
+  const hasChanges = newHD !== null || adv.acquiredFeats || adv.equippedArmor || adv.equippedShield
+    || Object.values(adv.abilityInc).some(v => v !== 0);
+
+  if (!hasChanges) {
+    state.advancedResult = null;
+    document.getElementById('sb-adv-status').textContent = '';
+    renderSingleStatBlock(monster, null);
+    return;
+  }
+
+  const body = {
+    monster_id: monster.id,
+    new_hd: newHD,
+    ability_increases: adv.abilityInc,
+    acquired_feats: adv.acquiredFeats || null,
+    equipped_armor: adv.equippedArmor || null,
+    equipped_shield: adv.equippedShield || null,
+  };
+
+  document.getElementById('sb-adv-status').textContent = 'Advancing...';
+  try {
+    const result = await postJSON(`${API}/monsters/advance`, body);
+    state.advancedResult = result;
+    const hdDisplay = newHD ? ` (HD ${newHD})` : '';
+    document.getElementById('sb-adv-status').textContent = `Advanced${hdDisplay} \u2014 CR ${result.challenge_rating}`;
+    renderSingleStatBlock(monster, result);
+  } catch (err) {
+    let msg = err.message;
+    try { const p = JSON.parse(msg); if (p.detail) msg = p.detail; } catch(_) {}
+    document.getElementById('sb-adv-status').textContent = `Error: ${msg}`;
+    console.error(err);
+  }
+}
+
+// ============================================================
+// OPTIONS DIALOG
+// ============================================================
+
+// ============================================================
+// PHASE B: GUIDANCE HELPERS
+// ============================================================
+
+// ASI points earned from HD advancement (one per 4-HD milestone crossed)
+function asiEarned(baseHD, curHD) {
+  return Math.floor(curHD / 4) - Math.floor(baseHD / 4);
+}
+
+// Total ASI points spent (each +1 to any ability = 1 point)
+function asiSpent(abilityInc) {
+  return Object.values(abilityInc).reduce((sum, v) => sum + Math.abs(parseInt(v) || 0), 0);
+}
+
+// Count feats from a comma-separated string
+function countFeats(str) {
+  return str ? str.split(',').map(f => f.trim()).filter(Boolean).length : 0;
+}
+
+// Update ASI counter (called live as inputs change)
+function updateAsiGuide() {
+  const monster = state.selectedMonster;
+  if (!monster) return;
+  const baseHD = monster.hd_count || 1;
+  const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
+
+  const readInc = () => {
+    const inc = {};
+    ['str','dex','con','int','wis','cha'].forEach(s => {
+      inc[s] = parseInt(document.getElementById(`dlg-inc-${s}`).value) || 0;
+    });
+    return inc;
+  };
+
+  const earned = asiEarned(baseHD, curHD);
+  const spent = asiSpent(readInc());
+  const el = document.getElementById('dlg-asi-guide');
+  if (!el) return;
+
+  const abilInputs = ['str','dex','con','int','wis','cha'].map(s => document.getElementById(`dlg-inc-${s}`));
+
+  if (earned === 0) {
+    // No points earned — disable all inputs and reset them to 0
+    abilInputs.forEach(inp => { inp.disabled = true; inp.value = 0; });
+    el.className = 'dlg-guidance';
+    el.innerHTML = `No ASI points available. Advance HD past a 4-HD milestone to earn +1 per crossing.`;
+  } else {
+    abilInputs.forEach(inp => { inp.disabled = false; });
+    const over = spent > earned;
+    const remaining = earned - spent;
+    el.className = `dlg-guidance ${over ? 'warn' : 'ok'}`;
+    el.innerHTML = over
+      ? `ASI points: <strong>${spent}/${earned}</strong> used &mdash; <span style="color:#c00">&#9888; ${spent - earned} over budget!</span>`
+      : `ASI points: <strong>${spent}/${earned}</strong> used &mdash; ${remaining} remaining (one +1 per milestone)`;
+  }
+}
+
+// Update feat guidance line
+function updateFeatGuide() {
+  const monster = state.selectedMonster;
+  if (!monster) return;
+  const baseHD = monster.hd_count || 1;
+  const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
+  const isMindless = monster.intelligence == null;
+
+  const el = document.getElementById('dlg-feat-guide');
+  const input = document.getElementById('dlg-feats');
+  if (!el) return;
+
+  if (isMindless) {
+    el.className = 'dlg-guidance warn';
+    el.innerHTML = '&#9888; Mindless creature (Int &mdash;) cannot take feats.';
+    input.disabled = true;
+    input.title = 'Mindless creatures cannot take feats';
+    return;
+  }
+
+  input.disabled = false;
+  input.title = '';
+
+  const bonusFeatCount = monster.bonus_feat_count || 0;
+  const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount;
+  const baseFeats = countFeats(monster.all_feats || monster.feats || '');
+  const acquiredFeats = countFeats(document.getElementById('dlg-feats').value);
+  const used = baseFeats + acquiredFeats;
+  const remaining = maxFeats - used;
+
+  el.className = `dlg-guidance ${remaining < 0 ? 'warn' : 'ok'}`;
+  el.innerHTML = remaining < 0
+    ? `Feat slots: <strong>${used}/${maxFeats}</strong> &mdash; <span style="color:#c00">&#9888; ${-remaining} over limit!</span>`
+    : `Feat slots: <strong>${used}/${maxFeats}</strong> &mdash; ${remaining} available`;
+}
+
+function openOptionsDialog() {
+  const adv = state.advState;
+  document.getElementById('dlg-feats').value = adv.acquiredFeats || '';
+  ['str','dex','con','int','wis','cha'].forEach(s => {
+    document.getElementById(`dlg-inc-${s}`).value = adv.abilityInc[s] || 0;
+  });
+  document.getElementById('dlg-armor').value = adv.equippedArmor || '';
+  document.getElementById('dlg-shield').value = adv.equippedShield || '';
+  document.getElementById('dlg-error').style.display = 'none';
+
+  updateFeatGuide();
+  updateAsiGuide();
+
+  document.getElementById('options-dialog').showModal();
+}
+
+// Wire live updates inside the dialog
+['str','dex','con','int','wis','cha'].forEach(s => {
+  document.getElementById(`dlg-inc-${s}`).addEventListener('input', updateAsiGuide);
+});
+document.getElementById('dlg-feats').addEventListener('input', updateFeatGuide);
+
+async function applyOptions() {
+  const monster = state.selectedMonster;
+  const isMindless = monster && monster.intelligence == null;
+
+  // Validate ASI budget before applying
+  const baseHD = monster ? (monster.hd_count || 1) : 1;
+  const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
+  const earned = asiEarned(baseHD, curHD);
+  const incValues = {};
+  ['str','dex','con','int','wis','cha'].forEach(s => {
+    incValues[s] = parseInt(document.getElementById(`dlg-inc-${s}`).value) || 0;
+  });
+  const spent = asiSpent(incValues);
+  if (spent > earned) {
+    const errEl = document.getElementById('dlg-error');
+    errEl.textContent = `ASI budget exceeded: ${spent} points spent but only ${earned} earned. Reduce your ability increases.`;
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('dlg-error').style.display = 'none';
+
+  state.advState.acquiredFeats = isMindless ? '' : document.getElementById('dlg-feats').value.trim();
+  ['str','dex','con','int','wis','cha'].forEach(s => {
+    state.advState.abilityInc[s] = incValues[s];
+  });
+  state.advState.equippedArmor = document.getElementById('dlg-armor').value;
+  state.advState.equippedShield = document.getElementById('dlg-shield').value;
+  document.getElementById('options-dialog').close();
+  await doAdvance();
+}
+
+// ============================================================
+// RESET ADVANCEMENT
+// ============================================================
+
+function resetAdvancement() {
+  state.advState = {
+    newHD: null,
+    acquiredFeats: '',
+    abilityInc: { str: 0, dex: 0, con: 0, int: 0, wis: 0, cha: 0 },
+    equippedArmor: '',
+    equippedShield: '',
+  };
+  state.advancedResult = null;
+  document.getElementById('sb-adv-status').textContent = '';
+  if (state.selectedMonster) renderSingleStatBlock(state.selectedMonster, null);
+}
+
+// ============================================================
+// COPY STAT BLOCK
+// ============================================================
+
+function copyStatBlock() {
+  const m = state.advancedResult || state.selectedMonster;
+  if (!m) return;
+  const base = state.selectedMonster;
+  const isAdv = state.advancedResult !== null;
+
+  const lines = [];
+  lines.push(m.name || (base && base.name) || '');
+  lines.push(isAdv ? (m.type_line || '') : buildTypeLine(base || m));
+  lines.push(`CR: ${m.challenge_rating ?? ''}`);
+  lines.push('');
+  if (isAdv) {
+    lines.push(`HD: ${m.total_hd ?? ''} | HP: ${m.hit_points ?? ''} (avg ${m.hp_average ?? ''}) | Init: ${signedInt(m.initiative)} | Speed: ${m.speed || ''}`);
+    lines.push(`Space/Reach: ${m.space_reach || ''}`);
+    lines.push(`AC: ${m.total_ac ?? ''} | Touch: ${m.touch_ac ?? ''} | Flat-footed: ${m.flat_footed_ac ?? ''}`);
+    lines.push(`BAB: ${signedInt(m.base_attack)} | Grapple: ${signedInt(m.grapple)}`);
+    lines.push(`Saves \u2014 Fort: ${signedInt(m.fort_save)} | Ref: ${signedInt(m.ref_save)} | Will: ${signedInt(m.will_save)}`);
+  } else {
+    lines.push(`HD: ${m.hit_dice || ''} | HP: ${m.hit_points || ''} | Init: ${signedInt(m.initiative)} | Speed: ${m.speed || ''}`);
+    lines.push(`Space/Reach: ${m.space || ''}/${m.reach1 || ''}`);
+    lines.push(`AC: ${m.armor_class || ''}`);
+    lines.push(`BAB: ${signedInt(m.base_attack)} | Grapple: ${signedInt(m.grapple)}`);
+    const saves = computeBaseSaves(m);
+    lines.push(`Saves \u2014 Fort: ${signedInt(saves.fort)} | Ref: ${signedInt(saves.ref)} | Will: ${signedInt(saves.will)}`);
+  }
+  lines.push('');
+  lines.push(`Str ${m.strength ?? '—'} ${formatMod(m.strength)} | Dex ${m.dex ?? '—'} ${formatMod(m.dex)} | Con ${m.con ?? '—'} ${formatMod(m.con)} | Int ${m.intelligence ?? '—'} ${formatMod(m.intelligence)} | Wis ${m.wis ?? '—'} ${formatMod(m.wis)} | Cha ${m.cha ?? '—'} ${formatMod(m.cha)}`);
+  lines.push('');
+  const featText = isAdv ? m.feats : (m.all_feats || m.feats);
+  if (featText) {
+    const cnt = featText.split(',').filter(f => f.trim()).length;
+    lines.push(`Feats (${cnt}${isAdv ? '/' + (m.max_feats ?? '?') : ''}): ${featText}`);
+  }
+  if (m.skills) lines.push(`Skills: ${m.skills}`);
+  if (m.special_attacks) lines.push(`Special Attacks: ${m.special_attacks}`);
+  if (m.special_qualities) lines.push(`Special Qualities: ${m.special_qualities}`);
+  if (isAdv && m.sneak_attack_dice > 0) lines.push(`Sneak Attack: +${m.sneak_attack_dice}d6`);
+  if (isAdv && m.barbarian_rage_per_day > 0) lines.push(`Rage: ${m.barbarian_rage_per_day}/day`);
+  if (isAdv && m.damage_reduction) lines.push(`DR: ${m.damage_reduction}`);
+  if (isAdv && m.class_features && m.class_features.length > 0) lines.push(`Class Features: ${m.class_features.join(', ')}`);
+  if (isAdv && m.class_levels) lines.push(`Class Levels: ${m.class_levels}`);
+  lines.push('');
+  lines.push(`Alignment: ${m.alignment || ''} | Environment: ${m.environment || ''}`);
+  lines.push(`Organization: ${m.organization || ''} | Treasure: ${m.treasure || ''}`);
+  if (m.advancement) lines.push(`Advancement: ${m.advancement}`);
+
+  const text = lines.join('\n');
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  }).catch(() => {
+    prompt('Copy the text below:', text);
+  });
+}
+
+// ============================================================
+// STARTUP
+// ============================================================
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
