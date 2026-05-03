@@ -10,7 +10,11 @@ venv/
 env/
 .venv/
 
-# Database — committed for easy setup; run extract_excel.py + seed scripts to rebuild from Excel
+# Databases — built artifacts, regenerated via `python backend/data/build_db.py`
+backend/data/monsters.db
+backend/data/base.db
+backend/data/prod.db
+backend/data/migration_report.txt
 
 # Excel source (large binary, keep locally)
 *.xlsm

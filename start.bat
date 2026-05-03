@@ -47,7 +47,7 @@ if errorlevel 1 (
 if not exist "%VENV_DIR%\Scripts\python.exe" (
     echo [MISSING] Virtual environment not found at: venv\
     echo          Fix:     python -m venv venv
-    echo          Then:    venv\Scripts\pip install fastapi uvicorn[standard] sqlalchemy pydantic openpyxl
+    echo          Then:    venv\Scripts\pip install -r backend\requirements.txt
     echo.
     set ERRORS=1
 ) else (
@@ -93,14 +93,22 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
     )
 )
 
-:: ─── 8. Database file ────────────────────────────────────────
+:: ─── 8. Database files ────────────────────────────────────────
 if not exist "%~dp0backend\data\monsters.db" (
     echo [MISSING] monsters.db not found at backend\data\monsters.db
-    echo          Fix:     cd backend ^&^& ..\venv\Scripts\python data\extract_excel.py
+    echo          Fix:     venv\Scripts\python backend\data\build_db.py
     echo.
     set ERRORS=1
 ) else (
     echo [OK]      monsters.db found
+)
+if not exist "%~dp0backend\data\prod.db" (
+    echo [MISSING] prod.db not found at backend\data\prod.db
+    echo          Fix:     venv\Scripts\python backend\data\build_db.py
+    echo.
+    set ERRORS=1
+) else (
+    echo [OK]      prod.db found
 )
 
 echo.

@@ -9,7 +9,6 @@ class MonsterSummary(BaseModel):
     size: Optional[str] = None
     type: Optional[str] = None
     challenge_rating: Optional[float] = None
-    cr_text: Optional[str] = None
     hd_count: Optional[int] = None
     alignment: Optional[str] = None
     advancement: Optional[str] = None
@@ -27,17 +26,20 @@ class MonsterDetail(BaseModel):
     initiative: Optional[str] = None
     speed: Optional[str] = None
     armor_class: Optional[str] = None
+    ac_total: Optional[int] = None
+    ac_touch: Optional[int] = None
+    ac_flat_footed: Optional[int] = None
     base_attack: Optional[int] = None
     grapple: Optional[str] = None
     attack: Optional[str] = None
     full_attack: Optional[str] = None
     space: Optional[str] = None
-    reach1: Optional[str] = None
+    reach: Optional[str] = None
     special_attacks: Optional[str] = None
     special_qualities: Optional[str] = None
     skills: Optional[str] = None
     feats: Optional[str] = None
-    all_feats: Optional[str] = None
+    bonus_feats: Optional[str] = None
     fort_save_type: Optional[str] = None
     ref_save_type: Optional[str] = None
     will_save_type: Optional[str] = None
@@ -50,17 +52,17 @@ class MonsterDetail(BaseModel):
     environment: Optional[str] = None
     organization: Optional[str] = None
     challenge_rating: Optional[float] = None
-    cr_text: Optional[str] = None
     treasure: Optional[str] = None
     alignment: Optional[str] = None
     advancement: Optional[str] = None
-    max_adv_base_size: Optional[int] = None
-    max_adv_next_size: Optional[int] = None
+    advancement_type: Optional[str] = None   # 'hd'|'hd_or_class'|'class'|'special'|'none'
+    adv_max_hd: Optional[int] = None         # None = open-ended or non-advancing
+    adv_size_thresholds: list = []           # [[min_hd, "Size"], ...]
+    # Convenience booleans for the frontend, derived from advancement_type
+    can_advance_hd: bool = False             # True for 'hd' and 'hd_or_class'
+    advances_by_class: bool = False          # True for 'class' and 'hd_or_class'
     special_abilities: Optional[str] = None
-    stat_block: Optional[str] = None
     level_adjustment: Optional[str] = None
-    bonus_feats: Optional[str] = None
-    bonus_feat_count: Optional[int] = None
     attacks: list = []
     ac_components: Optional[dict] = None
 
@@ -78,6 +80,7 @@ class AttackSchema(BaseModel):
     crit_mult: Optional[int] = None
     str_mult: Optional[float] = None
     group_id: Optional[int] = None
+    reach: Optional[str] = None
 
 
 class ACComponentSchema(BaseModel):
@@ -130,7 +133,7 @@ class StatBlockResponse(BaseModel):
     strength: int
     dex: int
     con: Optional[int] = None
-    intelligence: int
+    intelligence: Optional[int] = None  # None for Int "—" creatures
     wis: int
     cha: int
     feats: str

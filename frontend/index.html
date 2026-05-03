@@ -272,6 +272,7 @@
     .hd-stepper button:hover:not(:disabled) { background: #bbb; }
     .hd-stepper button:disabled { opacity: 0.4; cursor: default; }
     .hd-stepper span { font-weight: bold; min-width: 24px; text-align: center; }
+    .hd-note { font-size: 11px; font-weight: normal; color: #777; }
 
     /* === Stat Block Styling === */
     .stat-block {
@@ -808,13 +809,45 @@ function compareClass(a, b) {
 
 // Return the best display string for a monster's CR
 function displayCR(m) {
-  if (m.cr_text) return m.cr_text;
   if (m.challenge_rating == null) return '?';
   const n = m.challenge_rating;
   if (n === 0.5)   return '1/2';
   if (n === 0.25)  return '1/4';
   if (n === 0.125) return '1/8';
   return String(n % 1 === 0 ? Math.round(n) : n);
+}
+
+// --- Backend-schema helpers (post-Phase-A cleanup) ---
+// `all_feats` and `bonus_feat_count` columns were dropped — derive at runtime.
+function combinedFeats(m) {
+  if (!m) return '';
+  const parts = [m.feats, m.bonus_feats].filter(s => s && s.trim());
+  return parts.join(', ');
+}
+
+function bonusFeatCount(m) {
+  if (!m || !m.bonus_feats) return 0;
+  return m.bonus_feats.split(',').filter(s => s.trim()).length;
+}
+
+// Upper bound for the HD stepper.
+// Uses the SRD-parsed cap when available; open-ended / by-class creatures
+// fall back to a generous heuristic (4× base HD, min 40).
+function maxHDFor(monster) {
+  if (monster && monster.adv_max_hd) return monster.adv_max_hd;
+  const base = (monster && monster.hd_count) || 1;
+  return Math.max(base * 4, 40);
+}
+
+// True when the HD stepper should be active for this monster.
+function canAdvanceHD(monster) {
+  if (!monster) return false;
+  // Backend explicitly says HD advancement is available
+  if (monster.can_advance_hd) return true;
+  // "By character class" — no HD increase, but class levels are still fine
+  if (monster.advances_by_class) return false;
+  // Sentinel / Special / unknown — block HD increase
+  return false;
 }
 
 function crToFloat(cr) {
@@ -1448,14 +1481,16 @@ function buildStatBlockHTML(m, adv) {
 
   // --- HD / HP with inline stepper ---
   const baseHD = m.hd_count || 1;
-  const maxHD = m.max_adv_next_size || m.max_adv_base_size || baseHD;
+  const maxHD = maxHDFor(m);
   const curHD = isAdv ? (adv.total_hd || baseHD) : baseHD;
-  const canDown = curHD > baseHD;
-  const canUp = curHD < maxHD;
+  const hdEnabled = canAdvanceHD(m);
+  const canDown = hdEnabled && curHD > baseHD;
+  const canUp   = hdEnabled && curHD < maxHD;
   const hdStepper = `<span class="hd-stepper">` +
     `<button onclick="changeHD(-1)" ${canDown ? '' : 'disabled'}>&#9660;</button>` +
     `<span>${curHD}</span>` +
     `<button onclick="changeHD(+1)" ${canUp ? '' : 'disabled'}>&#9650;</button>` +
+    (m.advances_by_class ? ` <span class="hd-note">(by class)</span>` : '') +
     `</span>`;
 
   html += '<div class="sb-row">';
@@ -1479,7 +1514,7 @@ function buildStatBlockHTML(m, adv) {
   } else {
     html += statItem('Init', escHtml(signedInt(m.initiative)));
     html += statItem('Speed', escHtml(m.speed || ''));
-    html += statItem('Space/Reach', escHtml(`${m.space || ''}/${m.reach1 || ''}`));
+    html += statItem('Space/Reach', escHtml(`${m.space || ''}/${m.reach || ''}`));
   }
   html += '</div>';
 
@@ -1558,9 +1593,9 @@ function buildStatBlockHTML(m, adv) {
   }
 
   // --- Feats ---
-  const featText = isAdv ? (adv.feats || '') : (m.all_feats || m.feats || '');
+  const featText = isAdv ? (adv.feats || '') : combinedFeats(m);
   const featCount = featText ? featText.split(',').filter(f => f.trim()).length : 0;
-  const maxFeats = isAdv ? (adv.max_feats ?? '?') : (1 + Math.floor((m.hd_count || 1) / 3) + (m.bonus_feat_count || 0));
+  const maxFeats = isAdv ? (adv.max_feats ?? '?') : (1 + Math.floor((m.hd_count || 1) / 3) + bonusFeatCount(m));
   const featOverBudget = isAdv && typeof adv.max_feats === 'number' && featCount > adv.max_feats;
   html += `<div class="sb-section"><span class="sb-label">Feats (${featCount}/${maxFeats}${featOverBudget ? ' &#9888;' : ''}):</span> <span class="sb-value">${escHtml(featText || '—')}</span></div>`;
 
@@ -1579,7 +1614,7 @@ function buildStatBlockHTML(m, adv) {
 
     // Feat slots badge (only for creatures that can take feats)
     if (m.intelligence != null) {
-      const maxFeats2 = 1 + Math.floor(curHD2 / 3) + (m.bonus_feat_count || 0);
+      const maxFeats2 = 1 + Math.floor(curHD2 / 3) + bonusFeatCount(m);
       const usedFeats2 = countFeats(adv.feats || '');
       const featRem = maxFeats2 - usedFeats2;
       if (featRem > 0) {
@@ -1657,8 +1692,8 @@ function buildStatBlockHTML(m, adv) {
   if (m.advancement) {
     html += `<div class="sb-section"><span class="sb-label">Advancement:</span> <span class="sb-value">${escHtml(m.advancement)}</span></div>`;
   }
-  if (m.level_adjustment != null && m.level_adjustment !== '') {
-    html += `<div class="sb-section"><span class="sb-label">Level Adjustment:</span> <span class="sb-value">+${m.level_adjustment}</span></div>`;
+  if (m.level_adjustment && m.level_adjustment !== '-') {
+    html += `<div class="sb-section"><span class="sb-label">Level Adjustment:</span> <span class="sb-value">${escHtml(m.level_adjustment)}</span></div>`;
   }
 
   html += '</div>'; // .stat-block
@@ -1726,9 +1761,9 @@ function shortEnv(env) {
 
 async function changeHD(delta) {
   const monster = state.selectedMonster;
-  if (!monster) return;
+  if (!monster || !canAdvanceHD(monster)) return;
   const baseHD = monster.hd_count;
-  const maxHD = monster.max_adv_next_size || monster.max_adv_base_size || baseHD;
+  const maxHD = maxHDFor(monster);
   const curHD = state.advState.newHD !== null ? state.advState.newHD : baseHD;
   const newHD = curHD + delta;
   if (newHD < baseHD || newHD > maxHD) return;
@@ -1867,9 +1902,8 @@ function updateFeatGuide() {
   input.disabled = false;
   input.title = '';
 
-  const bonusFeatCount = monster.bonus_feat_count || 0;
-  const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount;
-  const baseFeats = countFeats(monster.all_feats || monster.feats || '');
+  const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount(monster);
+  const baseFeats = countFeats(combinedFeats(monster));
   const acquiredFeats = countFeats(document.getElementById('dlg-feats').value);
   const used = baseFeats + acquiredFeats;
   const remaining = maxFeats - used;
@@ -1909,7 +1943,7 @@ function populateCombatFeats() {
   }
 
   // Also check base feats for already-present Weapon Focus etc.
-  const allFeatsTxt = (monster.all_feats || monster.feats || '').toLowerCase();
+  const allFeatsTxt = combinedFeats(monster).toLowerCase();
   const cf = state.advState.combatFeats;
   let html = '<table class="combat-feats-table"><thead><tr><th>Attack</th><th>Dmg</th><th>Crit</th><th title="Weapon Focus (+1 att)">WF</th><th title="Improved Natural Attack (+1 dmg die)">INA</th><th title="Improved Critical (x2 threat)">IC</th></tr></thead><tbody>';
   for (const a of attacks) {
@@ -1991,7 +2025,7 @@ function openOptionsDialog() {
   updateArmorDexNote();
   document.getElementById('dlg-weapon-finesse').checked = adv.weaponFinesse || false;
   // If base feats already have Weapon Finesse, show checked+disabled
-  const baseHasFinesse = ((state.selectedMonster.all_feats || state.selectedMonster.feats || '').toLowerCase()).includes('weapon finesse');
+  const baseHasFinesse = combinedFeats(state.selectedMonster).toLowerCase().includes('weapon finesse');
   const wfEl = document.getElementById('dlg-weapon-finesse');
   if (baseHasFinesse) { wfEl.checked = true; wfEl.disabled = true; }
   else { wfEl.disabled = false; }
@@ -2045,9 +2079,8 @@ async function applyOptions() {
 
   // Validate feat budget
   if (!isMindless) {
-    const bonusFeatCount = monster ? (monster.bonus_feat_count || 0) : 0;
-    const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount;
-    const baseFeats = countFeats(monster ? (monster.all_feats || monster.feats || '') : '');
+    const maxFeats = 1 + Math.floor(curHD / 3) + bonusFeatCount(monster);
+    const baseFeats = countFeats(combinedFeats(monster));
     const newFeatsInput = document.getElementById('dlg-feats').value.trim();
     const acquiredCount = countFeats(newFeatsInput);
     if (baseFeats + acquiredCount > maxFeats) {
@@ -2118,7 +2151,7 @@ function copyStatBlock() {
     lines.push(`Saves \u2014 Fort: ${signedInt(m.fort_save)} | Ref: ${signedInt(m.ref_save)} | Will: ${signedInt(m.will_save)}`);
   } else {
     lines.push(`HD: ${m.hit_dice || ''} | HP: ${m.hit_points || ''} | Init: ${signedInt(m.initiative)} | Speed: ${m.speed || ''}`);
-    lines.push(`Space/Reach: ${m.space || ''}/${m.reach1 || ''}`);
+    lines.push(`Space/Reach: ${m.space || ''}/${m.reach || ''}`);
     lines.push(`AC: ${m.armor_class || ''}`);
     lines.push(`BAB: ${signedInt(m.base_attack)} | Grapple: ${signedInt(m.grapple)}`);
     const saves = computeBaseSaves(m);
@@ -2127,7 +2160,7 @@ function copyStatBlock() {
   lines.push('');
   lines.push(`Str ${m.strength ?? '—'} ${formatMod(m.strength)} | Dex ${m.dex ?? '—'} ${formatMod(m.dex)} | Con ${m.con ?? '—'} ${formatMod(m.con)} | Int ${m.intelligence ?? '—'} ${formatMod(m.intelligence)} | Wis ${m.wis ?? '—'} ${formatMod(m.wis)} | Cha ${m.cha ?? '—'} ${formatMod(m.cha)}`);
   lines.push('');
-  const featText = isAdv ? m.feats : (m.all_feats || m.feats);
+  const featText = isAdv ? m.feats : combinedFeats(m);
   if (featText) {
     const cnt = featText.split(',').filter(f => f.trim()).length;
     lines.push(`Feats (${cnt}${isAdv ? '/' + (m.max_feats ?? '?') : ''}): ${featText}`);

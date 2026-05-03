@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root version="5.1" dataversion="20260124" release="18|CoreRPG:7">
+	<npc>
+		<ac type="string">16 (+1 size, +4 Dex, +1 natural), touch 15, flat-footed 12</ac>
+		<advancement type="string">2-3 HD (Small)</advancement>
+		<alignment type="string">Always neutral good</alignment>
+		<atk type="string">Short sword +5 melee (1d4-2/19-20) or longbow +5 ranged (1d6-2/x3)</atk>
+		<babgrp type="string">+0/-6</babgrp>
+		<charisma type="number">16</charisma>
+		<constitution type="number">11</constitution>
+		<cr type="number">0</cr>
+		<dexterity type="number">18</dexterity>
+		<environment type="string">Temperate forests</environment>
+		<feats type="string">Dodge (B), Weapon Finesse</feats>
+		<fortitudesave type="number">0</fortitudesave>
+		<fullatk type="string">Short sword +5 melee (1d4-2/19-20) or longbow +5 ranged (1d6-2)/x3</fullatk>
+		<hd type="string">1d6</hd>
+		<hp type="number">3</hp>
+		<init type="number">4</init>
+		<intelligence type="number">16</intelligence>
+		<leveladjustment type="string">+4 (+6 with irresistible dance)</leveladjustment>
+		<librarylink type="windowreference">
+			<class>npc</class>
+			<recordname>..</recordname>
+		</librarylink>
+		<locked type="number">1</locked>
+		<name type="string">Sprite, Pixie (Copy)</name>
+		<organization type="string">Gang (2-4), band (6-11), or tribe (20-80)</organization>
+		<picture type="token">images/Sprite.webp@SWKARTFANTASYMONSTERSFM1</picture>
+		<reflexsave type="number">6</reflexsave>
+		<skills type="string">Bluff +7, Concentration +4, Escape Artist +8, Hide +8, Listen +8, Move Silently +8, Ride +8, Search +9, Sense Motive +6, Spot +8</skills>
+		<spacereach type="string">5 ft./5 ft.</spacereach>
+		<specialattacks type="string">Spell-like abilities, special arrows</specialattacks>
+		<specialqualities type="string">Damage reduction 10/cold iron, greater invisibility, low-light vision, spell resistance 15</specialqualities>
+		<speed type="string">20 ft. (4 squares), fly 60 ft. (good)</speed>
+		<spelldisplaymode type="string">action</spelldisplaymode>
+		<strength type="number">7</strength>
+		<text type="formattedtext">
+			<p>Sprites are reclusive fey. They go out of their way to fight evil and ugliness and to protect their homelands. Combat</p>
+			<p>Sprites fight their opponents with spell-like abilities and pintsized weaponry. They prefer ambushes and other trickery over direct confrontation.</p>
+			<p>
+				<b>Skills: </b>All sprites have a +2 racial bonus on Search, Spot, and Listen checks.</p>
+			<p>Pixies wear bright clothing, often including a cap and shoes with curled and pointed toes.</p>
+			<p>A pixie stands about 2-1/2 feet tall and weighs about 30 pounds.</p>
+			<p>Pixies speak Sylvan and Common, and may know other languages as well.</p>
+			<p>Combat</p>
+			<p>The normally carefree pixies ferociously attack evil creatures and unwanted intruders. They take full advantage of their invisibility and other abilities to harass and drive away opponents.</p>
+			<p>
+				<b>Greater Invisibility (Su): </b>A pixie remains invisible even when it attacks. This ability is constant, but the pixie can suppress or resume it as a free action.</p>
+			<p>
+				<b>Spell-Like Abilities: </b>1/day - <i>lesser confusion </i>(DC 14), <i>dancing lights, detect chaos, detect good, detect evil, detect law, detect thoughts </i>(DC 15), <i>dispel magic, entangle </i>(DC 14), <i>permanent image </i>(DC 19; visual and auditory elements only), <i>polymorph </i>(self only). Caster level 8th. The save DCs are Charisma-based.</p>
+			<p>One pixie in ten can use <i>irresistible dance </i>(caster level 8th) once per day.</p>
+			<p>
+				<b>Special Arrows (Ex): </b>Pixies sometimes employ arrows that deal no damage but can erase memory or put a creature to sleep.</p>
+			<p>
+				<i>Memory Loss: </i>An opponent struck by this arrow must succeed on a DC 15 Will save or lose all memory. The save DC is Charisma-based and includes a +2 racial bonus. The subject retains skills, languages, and class abilities but forgets everything else until he or she receives a <i>heal </i>spell or memory restoration with <i>limited wish, wish, </i>or <i>miracle </i>.</p>
+			<p>
+				<i>Sleep: </i>Any opponent struck by this arrow, regardless of Hit Dice, must succeed on a DC 15 Fortitude save or be affected as though by a <i>sleep </i>spell. The save DC is Charisma-based and includes a +2 racial bonus.</p>
+			<p>
+				<b>Pixies as Characters</b>
+			</p>
+			<p>A pixie character exchanges its 1 HD of fey for its first class level.</p>
+			<p>Pixie characters possess the following racial traits.</p>
+			<list>
+				<li>-4 Strength, +8 Dexterity, +6 Intelligence, +4 Wisdom, +6 Charisma.</li>
+				<li>Small size. +1 bonus to Armor Class, +1 bonus on attack rolls, +4 bonus on Hide checks, -4 penalty on grapple checks, lifting and carrying limits 3/4 those of Medium characters.</li>
+				<li>A pixie's base land speed is 20 feet. It also has a fly speed of 60 feet (good).</li>
+				<li>Low-light vision.</li>
+				<li>Skills: Pixies have a +2 racial bonus on Listen, Search, and Spot checks.</li>
+				<li>Racial Feats: A pixie receives Dodge as a bonus feat.</li>
+				<li>+1 natural armor bonus.</li>
+				<li>Special Attacks (see above): Spell-like abilities.</li>
+				<li>Special Qualities (see above): Damage reduction 10/cold iron, greater invisibility, spell resistance equal to 15 + class levels.</li>
+				<li>Automatic Languages: Common, Sylvan. Bonus Languages: Elven, Gnome, Halfling.</li>
+				<li>Favored Class: Sorcerer.</li>
+				<li>Level adjustment +4 (+6 if the pixie can use <i>irresistible dance).</i></li>
+			</list>
+		</text>
+		<token type="token">tokens/Sprite.webp@SWKARTFANTASYMONSTERSFM1</token>
+		<token3Dflat type="token">images/Sprite.webp@SWKARTFANTASYMONSTERSFM1</token3Dflat>
+		<treasure type="string">No coins; 50% goods; 50% items</treasure>
+		<type type="string">Small Fey</type>
+		<willsave type="number">4</willsave>
+		<wisdom type="number">15</wisdom>
+	</npc>
+</root>

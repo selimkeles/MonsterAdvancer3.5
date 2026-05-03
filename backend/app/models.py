@@ -22,18 +22,16 @@ class Monster(Base):
     attack = Column(String)
     full_attack = Column(String)
     space = Column(String)
-    reach1 = Column(String)
-    reach2 = Column(String)
-    reach2_desc = Column(String)
-    is_reach2_reach_weapon = Column(Integer)
-    reach3 = Column(String)
-    reach3_desc = Column(String)
+    reach = Column(String)
     special_attacks = Column(Text)
     special_qualities = Column(Text)
     skills = Column(Text)
     feats = Column(Text)
-    all_feats = Column(Text)
+    bonus_feats = Column(Text)
     saves = Column(String)
+    # Per-row save progressions exist because the SRD type table marks
+    # Humanoid as "Varies" — the specific good save can't be derived
+    # from the creature type alone.
     fort_save_type = Column(String)
     ref_save_type = Column(String)
     will_save_type = Column(String)
@@ -46,19 +44,19 @@ class Monster(Base):
     environment = Column(String)
     organization = Column(String)
     challenge_rating = Column(Float)
-    cr_text = Column(String)
     treasure = Column(String)
     alignment = Column(String)
     advancement = Column(Text)
-    max_adv_base_size = Column(Integer)
-    max_adv_next_size = Column(Integer)
+    advancement_type = Column(String)       # 'hd' | 'hd_or_class' | 'class' | 'special' | 'none'
+    adv_max_hd = Column(Integer)            # NULL when open-ended or non-advancing
+    adv_size_thresholds = Column(Text)      # JSON: [[min_hd, "Size"], ...]
+    ac_total = Column(Integer)              # parsed from armor_class text
+    ac_touch = Column(Integer)
+    ac_flat_footed = Column(Integer)
     special_abilities = Column(Text)
-    stat_block = Column(Text)
     reference = Column(String)
     level_adjustment = Column(String)
     altname = Column(String)
-    bonus_feats = Column(Text)
-    bonus_feat_count = Column(Integer)
 
     attacks = relationship("Attack", back_populates="monster")
     ac_components = relationship("ArmorClassComponent", back_populates="monster", uselist=False)
@@ -85,6 +83,10 @@ class Attack(Base):
     dmg_composite = Column(String)
     dmg_text = Column(String)
     weapon_text = Column(String)
+    # Per-attack reach for asymmetric creatures (e.g., a long-armed monster
+    # with bite reach 5 ft. and tentacle reach 10 ft.). NULL falls back to
+    # the monster's default `reach` column.
+    reach = Column(String)
 
     monster = relationship("Monster", back_populates="attacks")
 

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root version="5.1" dataversion="20260124" release="18|CoreRPG:7">
+	<npc>
+		<ac type="string">20 (-1 size, +1 Dex, +10 natural), touch 10, flat-footed 19</ac>
+		<advancement type="string">7-12 HD (Large); 13-18 HD (Huge)</advancement>
+		<alignment type="string">Always lawful evil</alignment>
+		<atk type="string">Claw +9 melee (2d6+4)</atk>
+		<babgrp type="string">+6/+14</babgrp>
+		<charisma type="number">16</charisma>
+		<constitution type="number">14</constitution>
+		<cr type="number">5</cr>
+		<dexterity type="number">13</dexterity>
+		<environment type="string">A lawful-aligned plane</environment>
+		<feats type="string">Dodge, Mobility, Spring Attack</feats>
+		<fortitudesave type="number">7</fortitudesave>
+		<fullatk type="string">2 claws +9 melee (2d6+4) and bite +4 melee (4d6+2)</fullatk>
+		<hd type="string">6d8+12</hd>
+		<hp type="number">39</hp>
+		<init type="number">1</init>
+		<intelligence type="number">11</intelligence>
+		<leveladjustment type="string"> - </leveladjustment>
+		<librarylink type="windowreference">
+			<class>npc</class>
+			<recordname>..</recordname>
+		</librarylink>
+		<locked type="number">1</locked>
+		<name type="string">Achaierai (Copy)</name>
+		<organization type="string">Solitary or flock (5-8)</organization>
+		<picture type="token"></picture>
+		<reflexsave type="number">6</reflexsave>
+		<skills type="string">Balance +10, Climb +13, Diplomacy +5, Hide +6,Jump +21, Listen +11, Move Silently +10, SenseMotive +11, Spot +11</skills>
+		<spacereach type="string">10 ft./10 ft.</spacereach>
+		<specialattacks type="string">Black cloud</specialattacks>
+		<specialqualities type="string">Darkvision 60 ft., spell resistance 19</specialqualities>
+		<speed type="string">50 ft. (10 squares)</speed>
+		<spelldisplaymode type="string">action</spelldisplaymode>
+		<spellset />
+		<strength type="number">19</strength>
+		<text type="formattedtext">
+			<p>Achaierais are massive, 15-foot-tall flightless birds that inhabit lawful planes of battle and are only occasionally encountered elsewhere.</p>
+			<p>Achaierais speak Infernal. They weigh about 750 pounds.</p>
+			<p>COMBAT</p>
+			<p>In close combat, an achaierai lashes out with two of its four legs and snaps with its powerful beak. It makes frequent use of its Spring Attack feat to strike quickly and then retreat out of range before an enemy can counterattack.</p>
+			<p>An achaierai's natural weapons, as well as any weapons it wields, are treated as evil-aligned and lawfulaligned for the purpose of overcoming damage reduction.</p>
+			<p>
+				<b>Black Cloud (Ex): </b>Up to three times per day an achaierai can release a choking, toxic black cloud.</p>
+			<p>Those other than achaierai within 10 feet instantly take 2d6 points of damage. They must also succeed on a DC 15 Fortitude save or be affected for 3 hours as though by an <i>insanity </i>spell (caster level 16th). The save DC is Constitution-based.</p>
+		</text>
+		<token type="token"></token>
+		<token3Dflat type="token"></token3Dflat>
+		<treasure type="string">Double standard</treasure>
+		<type type="string">Large Outsider (Evil, Extraplanar, Lawful)</type>
+		<willsave type="number">7</willsave>
+		<wisdom type="number">14</wisdom>
+	</npc>
+</root>

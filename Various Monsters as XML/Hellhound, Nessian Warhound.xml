@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root version="5.1" dataversion="20260124" release="18|CoreRPG:7">
+	<npc>
+		<ac type="string">24 (-1 size, +2 Dex, +7 natural, +6 +2 chain shirt barding), touch 11, flat-footed 22</ac>
+		<advancement type="string">13-17 HD (Large); 18-24 HD (Huge)</advancement>
+		<alignment type="string">Always lawful evil</alignment>
+		<atk type="string">Bite +20 melee (2d6+12/19-20 plus 1d8 fire)</atk>
+		<babgrp type="string">+12/+24</babgrp>
+		<charisma type="number">6</charisma>
+		<constitution type="number">20</constitution>
+		<cr type="number">9</cr>
+		<dexterity type="number">14</dexterity>
+		<environment type="string">A lawful evil plane</environment>
+		<feats type="string">Alertness, Improved Critical (bite), Improved Initiative, Track, Weapon Focus (bite)</feats>
+		<fortitudesave type="number">13</fortitudesave>
+		<fullatk type="string">Bite +20 melee (2d6+12/19-20 plus 1d8 fire)</fullatk>
+		<hd type="string">12d8+60</hd>
+		<hp type="number">114</hp>
+		<init type="number">6</init>
+		<intelligence type="number">4</intelligence>
+		<leveladjustment type="string">+4 (cohort)</leveladjustment>
+		<librarylink type="windowreference">
+			<class>npc</class>
+			<recordname>..</recordname>
+		</librarylink>
+		<locked type="number">1</locked>
+		<name type="string">Hellhound, Nessian Warhound (Copy)</name>
+		<organization type="string">Solitary, pair, or pack (1-2 Nessian warhounds and 5-12 hell hounds)</organization>
+		<picture type="token">images/Hellhound.webp@SWKARTFANTASYMONSTERSFM1</picture>
+		<reflexsave type="number">10</reflexsave>
+		<skills type="string">Hide +17, Jump +19, Listen +18, Move Silently +21,Spot +18, Survival +8*, Tumble +3</skills>
+		<spacereach type="string">10 ft./10 ft.</spacereach>
+		<specialattacks type="string">Breath weapon, fiery bite</specialattacks>
+		<specialqualities type="string">Darkvision 60 ft., immunity to fire, scent, vulnerability to cold</specialqualities>
+		<speed type="string">40 ft. (8 squares)</speed>
+		<spelldisplaymode type="string">action</spelldisplaymode>
+		<strength type="number">26</strength>
+		<text type="formattedtext">
+			<p>A typical hell hound stands 4-1/2 feet high at the shoulder and weighs 120 pounds.</p>
+			<p>Hell hounds do not speak but understand Infernal.</p>
+			<p>COMBAT</p>
+			<p>Hell hounds are efficient hunters. A favorite pack tactic is to surround prey quietly, then attack with one or two hounds, driving it toward the rest with their fiery breath. If the prey doesn't run, the pack closes in. Hell hounds track fleeing prey relentlessly.</p>
+			<p>A hell hound's natural weapons, as well as any weapons it wields, are treated as evil-aligned and lawful-aligned for the purpose of overcoming damage reduction.</p>
+			<p>
+				<b>Skills: </b>Hell hounds have a +5 racial bonus on Hide and Move Silently checks.</p>
+			<p>*They also receive a +8 racial bonus on Survival checks when tracking by scent, due to their keen sense of smell.</p>
+			<p>
+				<b>NESSIAN WARHOUND</b>
+			</p>
+			<p>Nessian warhounds are coalblack mastiffs the size of draft horses, often fitted with shirts of infernal chainmail.</p>
+			<p>Nessian warhounds resemble hell hounds, except as otherwise noted.</p>
+			<p>
+				<b>Breath Weapon (Su): </b>10-foot cone, once every 2d4 rounds, damage 3d6 fire, Reflex DC 21 half. The save DC is Constitution- based.</p>
+			<p>
+				<b>Fiery Bite (Su): </b>A Nessian warhound deals an extra 1d8 points of fire damage every time it bites an opponent, as if its bite were a flaming weapon.</p>
+		</text>
+		<token type="token">tokens/Hellhound.webp@SWKARTFANTASYMONSTERSFM1</token>
+		<token3Dflat type="token">images/Hellhound.webp@SWKARTFANTASYMONSTERSFM1</token3Dflat>
+		<treasure type="string">+2 chain shirt barding</treasure>
+		<type type="string">Large Outsider (Evil, Extraplanar, Fire, Lawful)</type>
+		<willsave type="number">9</willsave>
+		<wisdom type="number">12</wisdom>
+	</npc>
+</root>

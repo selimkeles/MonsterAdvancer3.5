@@ -1,4 +1,5 @@
 """Monster API endpoints."""
+import json
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -17,6 +18,41 @@ from ..services.calculator import (
 )
 
 router = APIRouter()
+
+_HD_TYPES = frozenset({"hd", "hd_or_class"})
+_CLASS_TYPES = frozenset({"class", "hd_or_class"})
+
+
+def _advancement_fields(monster: Monster) -> dict:
+    """Derive frontend advancement fields from the normalised DB columns."""
+    adv_type = monster.advancement_type or "none"
+    thresholds = []
+    try:
+        raw = monster.adv_size_thresholds
+        if raw:
+            thresholds = json.loads(raw)
+    except (ValueError, TypeError):
+        pass
+    return {
+        "advancement_type": adv_type,
+        "adv_max_hd": monster.adv_max_hd,
+        "adv_size_thresholds": thresholds,
+        "can_advance_hd": adv_type in _HD_TYPES,
+        "advances_by_class": adv_type in _CLASS_TYPES,
+    }
+
+
+def combined_feats(monster: Monster) -> str:
+    """Replace the dropped `all_feats` column: feats + bonus_feats joined."""
+    parts = [s for s in (monster.feats, monster.bonus_feats) if s]
+    return ", ".join(parts)
+
+
+def bonus_feat_count(monster: Monster) -> int:
+    """Replace the dropped `bonus_feat_count` column: count comma-separated entries."""
+    if not monster.bonus_feats:
+        return 0
+    return sum(1 for x in monster.bonus_feats.split(",") if x.strip())
 
 
 @router.get("/monsters", response_model=list[MonsterSummary])
@@ -68,17 +104,20 @@ def get_monster(monster_id: int, db: Session = Depends(get_db)):
         initiative=monster.initiative,
         speed=monster.speed,
         armor_class=monster.armor_class,
+        ac_total=monster.ac_total,
+        ac_touch=monster.ac_touch,
+        ac_flat_footed=monster.ac_flat_footed,
         base_attack=monster.base_attack,
         grapple=monster.grapple,
         attack=monster.attack,
         full_attack=monster.full_attack,
         space=monster.space,
-        reach1=monster.reach1,
+        reach=monster.reach,
         special_attacks=monster.special_attacks,
         special_qualities=monster.special_qualities,
         skills=monster.skills,
         feats=monster.feats,
-        all_feats=monster.all_feats,
+        bonus_feats=monster.bonus_feats,
         fort_save_type=monster.fort_save_type,
         ref_save_type=monster.ref_save_type,
         will_save_type=monster.will_save_type,
@@ -91,23 +130,18 @@ def get_monster(monster_id: int, db: Session = Depends(get_db)):
         environment=monster.environment,
         organization=monster.organization,
         challenge_rating=monster.challenge_rating,
-        cr_text=monster.cr_text,
         treasure=monster.treasure,
         alignment=monster.alignment,
         advancement=monster.advancement,
-        max_adv_base_size=monster.max_adv_base_size,
-        max_adv_next_size=monster.max_adv_next_size,
         special_abilities=monster.special_abilities,
-        stat_block=monster.stat_block,
         level_adjustment=monster.level_adjustment,
-        bonus_feats=monster.bonus_feats,
-        bonus_feat_count=monster.bonus_feat_count,
+        **_advancement_fields(monster),
         attacks=[AttackSchema(
             id=a.id, att_name=a.att_name, att_count=a.att_count,
             is_standard=a.is_standard, weapon_nature=a.weapon_nature,
             att_mode=a.att_mode, use_category=a.use_category,
             dmg_die=a.dmg_die, crit_range=a.crit_range, crit_mult=a.crit_mult,
-            str_mult=a.str_mult, group_id=a.group_id,
+            str_mult=a.str_mult, group_id=a.group_id, reach=a.reach,
         ) for a in attacks],
         ac_components=ACComponentSchema(
             base_nat_armor=ac.base_nat_armor if ac else 0,
@@ -144,17 +178,19 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
     cr_mod = type_rule.cr_mod if type_rule else 3
     type_skill_points = type_rule.skill_point_base if type_rule else 2
 
-    # Determine new HD — validate against advancement range
+    # Determine new HD. We no longer store Excel-parsed advancement bounds
+    # (max_adv_base_size / max_adv_next_size); the only floor is the
+    # creature's own base HD. Size is bumped one step when HD doubles
+    # past the base — a simple, type-agnostic heuristic until Phase B
+    # parses the `advancement` text properly.
     new_hd = req.new_hd if req.new_hd is not None else monster.hd_count
-    max_hd = monster.max_adv_next_size or monster.max_adv_base_size or monster.hd_count
     if new_hd < monster.hd_count:
-        raise HTTPException(status_code=400, detail=f"HD cannot be reduced below base ({monster.hd_count})")
-    if new_hd > max_hd:
-        raise HTTPException(status_code=400, detail=f"HD cannot exceed {max_hd} for this monster")
+        raise HTTPException(
+            status_code=400,
+            detail=f"HD cannot be reduced below base ({monster.hd_count})",
+        )
 
-    # Auto-compute size from HD — mirrors Excel isSizeChanged logic
-    max_base = monster.max_adv_base_size or monster.hd_count
-    if new_hd > max_base and monster.size in SIZE_ORDER:
+    if new_hd >= monster.hd_count * 2 and monster.size in SIZE_ORDER:
         size_idx = SIZE_ORDER.index(monster.size)
         new_size = SIZE_ORDER[size_idx + 1] if size_idx < len(SIZE_ORDER) - 1 else monster.size
     else:
@@ -165,8 +201,9 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
         "str": 0, "dex": 0, "con": 0, "nat_ac": 0, "ac": 0, "atk": 0
     }
 
-    # Count special feats (use all_feats which includes bonus feats like Track)
-    all_feats = monster.all_feats or monster.feats or ""
+    # Aggregate feats (racial + bonus + just-acquired) to count special
+    # feats whose effect is by-occurrence (Toughness, Improved Natural Armor).
+    all_feats = combined_feats(monster)
     if req.acquired_feats:
         all_feats = f"{all_feats}, {req.acquired_feats}" if all_feats else req.acquired_feats
 
@@ -255,13 +292,13 @@ def advance_monster(req: AdvancementRequest, db: Session = Depends(get_db)):
         fort_type=monster.fort_save_type or "poorSave",
         ref_type=monster.ref_save_type or "poorSave",
         will_type=monster.will_save_type or "goodSave",
-        base_feats=monster.all_feats or monster.feats or "",
+        base_feats=combined_feats(monster),
         acquired_feats=req.acquired_feats or "",
-        bonus_feat_count=monster.bonus_feat_count or 0,
+        bonus_feat_count=bonus_feat_count(monster),
         class_levels=class_level_objs,
         speed=monster.speed or "",
         space=monster.space or "5",
-        reach=monster.reach1 or "5",
+        reach=monster.reach or "5",
         special_attacks=monster.special_attacks or "",
         special_qualities=monster.special_qualities or "",
         skills_text=monster.skills or "",

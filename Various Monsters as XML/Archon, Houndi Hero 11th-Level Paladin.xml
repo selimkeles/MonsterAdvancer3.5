@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root version="5.1" dataversion="20260124" release="18|CoreRPG:7">
+	<npc>
+		<ac type="string">30 (+9 natural, +11 +3 full plate armor), touch 10, flat-footed 30</ac>
+		<advancement type="string">By character class</advancement>
+		<alignment type="string">Always lawful good</alignment>
+		<atk type="string">+2 cold iron greatsword +25 melee (2d6+9/19-20) or bite +22 melee (1d8+5)</atk>
+		<babgrp type="string">+17/+22</babgrp>
+		<charisma type="number">16</charisma>
+		<constitution type="number">16</constitution>
+		<cr type="number">16</cr>
+		<dexterity type="number">10</dexterity>
+		<environment type="string">A lawful good-aligned plane</environment>
+		<feats type="string">Improved Initiative, Leadership,Mounted Combat, Ride-By Attack,Track, Weapon Focus (greatsword)</feats>
+		<fortitudesave type="number">18</fortitudesave>
+		<fullatk type="string">+2 cold iron greatsword +25/+20/+15/+10 melee (2d6+9/19-20) and bite +17 melee (1d8+2); or bite +22 melee (1d8+5) and slam +17 melee (1d4+2)</fullatk>
+		<hd type="string">6d8+18 plus 11d10+33</hd>
+		<hp type="number">143</hp>
+		<init type="number">4</init>
+		<intelligence type="number">8</intelligence>
+		<leveladjustment type="string">+5</leveladjustment>
+		<librarylink type="windowreference">
+			<class>npc</class>
+			<recordname>..</recordname>
+		</librarylink>
+		<locked type="number">1</locked>
+		<name type="string">Archon, Hound, Hero, 11th-Level Paladin (Copy)</name>
+		<organization type="string">Solitary or with juvenile bronze dragon</organization>
+		<picture type="token">images/Hound Archon.webp@SWKARTFANTASYMONSTERSFM1</picture>
+		<reflexsave type="number">11</reflexsave>
+		<skills type="string">Concentration +20, Diplomacy +19,Hide +2*, Jump +0, Listen +10, Ride +14,Sense Motive +19, Spot +10,Survival +2*</skills>
+		<spacereach type="string">5 ft./5 ft.</spacereach>
+		<specialattacks type="string">Smite evil, spells, spell-like abilities, turn undead 6/day</specialattacks>
+		<specialqualities type="string">Aura of menace, change shape, damage reduction 10/evil, darkvision 60 ft., immunity to electricity and petrification, magic circle against evil, paladin abilities, scent, spell resistance 27, teleport, tongues</specialqualities>
+		<speed type="string">30 ft. in full plate armor (6 squares); base speed 40 ft.</speed>
+		<spelldisplaymode type="string">action</spelldisplaymode>
+		<strength type="number">21</strength>
+		<text type="formattedtext">
+			<p>Archons are celestials from a lawful good-aligned plane.</p>
+			<p>Archons speak Celestial, Infernal, and Draconic, but can speak with almost any creature because of their tongues ability.</p>
+			<p>Hound archons look like well-muscled humans with canine heads.</p>
+			<p>COMBAT</p>
+			<p>Archons generally prefer to meet a foe head-on if it is prudent to do so, but if outmatched, they do what they can to even the odds (usually by employing hit-and run tactics or standing off and engaging a foe with magic before moving into melee).</p>
+			<p>
+				<b>Archon Traits: </b>An archon possesses the following traits (unless otherwise noted in a creature's entry).</p>
+			<list>
+				<li>Darkvision out to 60 feet and low-light vision.</li>
+				<li>
+					<i>Aura of Menace (Su): </i>A righteous aura surrounds archons that fight or get angry. Any hostile creature within a 20-foot radius of an archon must succeed on a Will save to resist its effects. The save DC varies with the type of archon, is Charisma-based, and includes a +2 racial bonus. Those who fail take a -2 penalty on attacks, AC, and saves for 24 hours or until they successfully hit the archon that generated the aura. A creature that has resisted or broken the effect cannot be affected again by the same archon's aura for 24 hours.</li>
+				<li>Immunity to electricity and petrification.</li>
+				<li>+4 racial bonus on saves against poison.</li>
+				<li>
+					<i>Magic Circle against Evil (Su): </i>A magic circle against evil effect always surrounds an archon (caster level equals the archon's Hit Dice). (The defensive benefits from the circle are not included in an archon's statistics block.)</li>
+				<li>
+					<i>Teleport (Su): </i>Archons can use <i>greater teleport </i>at will, as the spell (caster level 14th), except that the creature can transport only itself and up to 50 pounds of objects.</li>
+				<li>
+					<i>Tongues (Su): </i>All archons can speak with any creature that has a language, as though using a <i>tongues </i>spell (caster level 14th). This ability is always active.</li>
+			</list>
+			<p>Hound archons prefer to attack with their natural weapons but occasionally use greatswords.</p>
+			<p>A hound archon's natural weapons, as well as any weapons it wields, are treated as good-aligned and lawful-aligned for the purpose of overcoming damage reduction.</p>
+			<p>
+				<b>Spell-Like Abilities: </b>At will - <i>aid, continual flame, detect evil, message. </i>Caster level 6th.</p>
+			<p>
+				<b>Aura of Menace (Su): </b>Will DC 16 negates.</p>
+			<p>
+				<b>Change Shape (Su): </b>A hound archon can assume any canine form of Small to Large size. While in canine form, the hound archon loses its bite, slam, and greatsword attacks, but gains the bite attack of the form it chooses. For the purposes of this ability, canines include any doglike or wolflike animal of the animal type.</p>
+			<p>
+				<b>Skills: </b>*While in canine form, a hound archon gains a +4 circumstance bonus on Hide and Survival checks.</p>
+			<p>
+				<b>HOUND ARCHON HERO</b>
+			</p>
+			<p>The hound archon hero is a mighty champion of justice, devoted to the pursuit and destruction of evil in all its forms.</p>
+			<p>COMBAT</p>
+			<p>Hound archon heroes have over time developed a love for their weapons. They prefer to use their holy greatswords over their bite and slam attacks.</p>
+			<p>
+				<b>Spell-Like Abilities: </b>At will - <i>aid, continual flame, detect evil, message. </i>Caster level 6th.</p>
+			<p>
+				<b>Aura of Menace (Su): </b>The save DC for the hound archon hero's aura of menace (DC 18) is adjusted for its higher Charisma score.</p>
+			<p>
+				<b>Smite Evil (Su): </b>Three times per day a hound archon hero can make a normal melee attack with a +3 bonus that deals an extra 11 points of damage against an evil foe.</p>
+			<p>
+				<b>Change Shape (Su): </b>A hound archon hero can assume any canine form of Small to Large size. While in canine form, the hound archon loses its bite, slam, and greatsword attacks, but gains the bite attack of the form it chooses. For the purposes of this ability, canines include any doglike or wolflike animal of the animal type.</p>
+			<p>
+				<b>Skills: </b>*While in canine form, a hound archon hero gains a +4 circumstance bonus on Hide and Survival checks.</p>
+			<p>
+				<b>Paladin Abilities: </b>Aura of courage, aura of good, <i>detect evil </i>, divine grace, divine health, lay on hands (33 points/day), <i>remove disease </i>2/week, special mount (juvenile bronze dragon).</p>
+			<p>
+				<i>Typical Paladin Spells Prepared </i>(2/2; save DC 12 + spell level): 1st- <i>divine favor </i>, <i>protection from evil </i>; 2nd- <i>bull's strength </i>, <i>eagle's splendor </i>.</p>
+			<p>
+				<i>Possessions </i>: <i>+3 full plate armor </i>, <i>+2 cold iron greatsword </i>.</p>
+			<p>HOUND ARCHON HERO MOUNTS</p>
+			<p>In the course of their adventures, many hound archon heroes befriend bronze dragons, which may come to serve as their mounts. The relationship between these mounts and their celestial riders goes beyond even the special bond between paladin and mount. The dragon and the archon are naturally allies and friends, as can be expected of two powerful servants of cosmic justice. The juvenile bronze dragon mount gains 2 additional HD, 4 points of Strength, an additional 4 points of natural armor, improved evasion, and +10 feet to speed in all its movement forms. The dragon cannot, however, command other creatures of its type as other kinds of paladin mounts can.</p>
+		</text>
+		<token type="token">tokens/Hound Archon.webp@SWKARTFANTASYMONSTERSFM1</token>
+		<token3Dflat type="token">images/Hound Archon.webp@SWKARTFANTASYMONSTERSFM1</token3Dflat>
+		<treasure type="string">Standard</treasure>
+		<type type="string">Medium Outsider (Archon, Extraplanar, Good, Lawful)</type>
+		<willsave type="number">13</willsave>
+		<wisdom type="number">14</wisdom>
+	</npc>
+</root>
