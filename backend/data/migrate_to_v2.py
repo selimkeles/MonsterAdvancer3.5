@@ -307,6 +307,21 @@ _FEAT_PARAM_OPTIONS: dict[str, str] = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Armor name matching (best-effort for equipment populator)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _match_armor(desc: str, armor_lookup: dict[str, int]) -> int | None:
+    """Case-insensitive name match against armor catalog; substring fallback."""
+    key = desc.strip().lower()
+    if key in armor_lookup:
+        return armor_lookup[key]
+    for name, aid in armor_lookup.items():
+        if name in key or key in name:
+            return aid
+    return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main migration
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -327,10 +342,17 @@ def migrate(
 
     R = root  # shorthand
 
-    # ── Build lookup: feat name (lower) → id ─────────────────────────────────
+    # ── Build lookups: feat name (lower) → id, feat id → canonical name ────────
     feat_lookup: dict[str, int] = {}
+    feat_id_to_name: dict[int, str] = {}
     for row in dst.execute("SELECT id, name FROM feats"):
         feat_lookup[row["name"].strip().lower()] = row["id"]
+        feat_id_to_name[row["id"]] = row["name"].strip()
+
+    # ── Build lookup: armor name (lower) → id ───────────────────────────────
+    armor_lookup: dict[str, int] = {}
+    for row in dst.execute("SELECT id, name FROM armor"):
+        armor_lookup[row["name"].strip().lower()] = row["id"]
 
     # ── Build lookup: class name (lower) → exists ─────────────────────────────
     class_names: set[str] = set()
@@ -371,6 +393,7 @@ def migrate(
     feat_rows:     list[dict] = []
     skill_rows:    list[dict] = []
     trait_rows:    list[dict] = []
+    equip_rows:    list[dict] = []
 
     report_lines:     list[str] = []
     needs_review_total = 0
@@ -426,6 +449,25 @@ def migrate(
         if mon["ac_total"] is None:
             review_reasons.append("ac_total is NULL")
 
+        # ── Equipment (armor + shield inferred from armor_class_components) ──────
+        armor_desc  = (mon["base_armor_description"]  or "").strip()
+        shield_desc = (mon["base_shield_description"] or "").strip()
+        for slot, desc in (("armor", armor_desc), ("shield", shield_desc)):
+            if not desc or desc in ("-", "—"):
+                continue
+            aid = _match_armor(desc, armor_lookup)
+            equip_rows.append({
+                "monster_id":           mid,
+                "slot":                 slot,
+                "weapon_id":            None,
+                "armor_id":             aid,
+                "enhancement_bonus":    0,
+                "special_properties":   None,
+                "composite_str_rating": None,
+                "custom_name":          None if aid else desc,
+                "notes":                None if aid else f"unmatched: {desc!r}",
+            })
+
         # ── Saves + grapple + initiative ──────────────────────────────────────
         fort_save, ref_save, will_save = _parse_saves(mon["saves"])
         grapple_val  = _parse_signed_int(mon["grapple"])
@@ -444,7 +486,6 @@ def migrate(
 
             # Look up by full name first (handles "Armor Proficiency (Heavy)")
             feat_id = feat_lookup.get(raw_token.strip().lower().rstrip("."))
-            feat_name_raw = None
             resolved_param = param
 
             if feat_id is None and param is not None:
@@ -452,12 +493,14 @@ def migrate(
                 feat_id = feat_lookup.get(base_name.strip().lower())
 
             if feat_id is None:
-                # Catalog miss — store raw text for later hand-fix
+                # Catalog miss — store raw token so the row is self-contained
                 feat_name_raw = raw_token
                 if base_name:
                     review_reasons.append(f"feat not in catalog: {base_name!r}")
-                resolved_param = param  # keep the parameter even on a miss
+                resolved_param = param
             else:
+                # Always store canonical catalog name so the table is readable without JOIN
+                feat_name_raw = feat_id_to_name[feat_id]
                 # If we found by full name (e.g. "Armor Proficiency (Heavy)"), no param
                 if feat_lookup.get(raw_token.strip().lower().rstrip(".")) == feat_id:
                     resolved_param = None
@@ -687,6 +730,20 @@ def migrate(
         """, trait_rows)
         dst_con.commit()
         print(f"  {R}_special_traits: inserted {len(trait_rows)} rows")
+
+    if equip_rows:
+        dst.executemany(f"""
+            INSERT INTO {R}_equipment
+                (monster_id, slot, weapon_id, armor_id, enhancement_bonus,
+                 special_properties, composite_str_rating, custom_name, notes)
+            VALUES
+                (:monster_id, :slot, :weapon_id, :armor_id, :enhancement_bonus,
+                 :special_properties, :composite_str_rating, :custom_name, :notes)
+        """, equip_rows)
+        dst_con.commit()
+        matched   = sum(1 for r in equip_rows if r["armor_id"] is not None)
+        unmatched = len(equip_rows) - matched
+        print(f"  {R}_equipment: inserted {len(equip_rows)} rows ({matched} matched, {unmatched} unmatched)")
 
     # ── Backfill feats.parameter_options ──────────────────────────────────────
     backfilled = 0

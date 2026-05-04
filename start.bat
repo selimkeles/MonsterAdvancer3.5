@@ -94,13 +94,13 @@ if exist "%VENV_DIR%\Scripts\python.exe" (
 )
 
 :: ─── 8. Database files ────────────────────────────────────────
-if not exist "%~dp0backend\data\monsters.db" (
-    echo [MISSING] monsters.db not found at backend\data\monsters.db
+if not exist "%~dp0backend\data\base.db" (
+    echo [MISSING] base.db not found at backend\data\base.db
     echo          Fix:     venv\Scripts\python backend\data\build_db.py
     echo.
     set ERRORS=1
 ) else (
-    echo [OK]      monsters.db found
+    echo [OK]      base.db found
 )
 if not exist "%~dp0backend\data\prod.db" (
     echo [MISSING] prod.db not found at backend\data\prod.db

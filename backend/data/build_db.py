@@ -2,12 +2,11 @@
 Rebuild all database files from source-of-truth SQL.
 
 Output files (all gitignored build artifacts):
-  backend/data/monsters.db   — legacy schema, still read by the running app
-  backend/data/base.db       — legacy schema + atomic monster_presets tables (SRD catalog)
-  backend/data/prod.db       — legacy schema + atomic monsters tables (user data)
+  backend/data/base.db   — catalog + monster_presets tables (SRD read-only)
+  backend/data/prod.db   — catalog + monster_builds tables (user data)
 
 Source files (committed):
-  backend/data/seed.sql      — legacy schema + 562 SRD monsters
+  backend/data/seed.sql      — schema + 562 SRD monsters (catalog tables)
   backend/data/seed_v2.sql   — new atomic-table DDL ({ROOT} placeholder)
 
 Usage:
@@ -18,12 +17,11 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 
-SEED_SQL     = HERE / "seed.sql"
-SEED_V2_SQL  = HERE / "seed_v2.sql"
-MONSTERS_DB  = HERE / "monsters.db"
-BASE_DB      = HERE / "base.db"
-PROD_DB      = HERE / "prod.db"
-REPORT_PATH  = HERE / "migration_report.txt"
+SEED_SQL    = HERE / "seed.sql"
+SEED_V2_SQL = HERE / "seed_v2.sql"
+BASE_DB     = HERE / "base.db"
+PROD_DB     = HERE / "prod.db"
+REPORT_PATH = HERE / "migration_report.txt"
 
 
 def _apply_sql(con: sqlite3.Connection, sql_path: Path, root: str | None = None) -> None:
@@ -35,49 +33,40 @@ def _apply_sql(con: sqlite3.Connection, sql_path: Path, root: str | None = None)
     con.commit()
 
 
-def _build_legacy() -> None:
-    """Rebuild monsters.db from seed.sql (drop-and-recreate)."""
-    if MONSTERS_DB.exists():
-        MONSTERS_DB.unlink()
-    con = sqlite3.connect(MONSTERS_DB)
-    try:
-        _apply_sql(con, SEED_SQL)
-    finally:
-        con.close()
-    print(f"[OK] monsters.db built from {SEED_SQL.name}")
-
-
-def _build_v2(db_path: Path, root: str, src_db: Path) -> None:
-    """
-    Build a v2 DB: apply seed.sql (catalog + legacy monsters), then apply
-    seed_v2.sql (new tables with given root name), then run the migrator.
-    """
+def _unlink_safe(db_path: Path) -> None:
     if db_path.exists():
         try:
             db_path.unlink()
         except PermissionError:
             raise SystemExit(
                 f"Cannot overwrite {db_path.name} — close any open SQLite connections "
-                f"(SQLite Browser, the running server, etc.) and try again."
+                "(SQLite Browser, running server, etc.) and try again."
             )
+
+
+def _build_v2(db_path: Path, root: str) -> None:
+    """
+    Build a v2 DB:
+      1. Apply seed.sql  (catalog tables + legacy monster data)
+      2. Apply seed_v2.sql  (new atomic tables for this root name)
+      3. Run migrator  (parse legacy rows into new tables)
+    """
+    _unlink_safe(db_path)
 
     con = sqlite3.connect(db_path)
     try:
-        # 1. Full legacy schema + data (same as monsters.db)
         _apply_sql(con, SEED_SQL)
         print(f"  {db_path.name}: seed.sql applied")
 
-        # 2. New atomic tables
         _apply_sql(con, SEED_V2_SQL, root=root)
         print(f"  {db_path.name}: seed_v2.sql applied (root={root})")
-
     finally:
         con.close()
 
-    # 3. Migrate legacy rows → new tables
-    from migrate_to_v2 import migrate  # local import avoids circular deps
+    from migrate_to_v2 import migrate
 
-    src_con = sqlite3.connect(src_db)
+    # Migrator reads legacy tables from the same DB it just built
+    src_con = sqlite3.connect(db_path)
     dst_con = sqlite3.connect(db_path)
     try:
         migrate(src_con, dst_con, root=root, report_path=REPORT_PATH)
@@ -94,23 +83,18 @@ def build() -> None:
     if not SEED_V2_SQL.exists():
         raise SystemExit(f"seed_v2.sql not found at {SEED_V2_SQL}")
 
-    print("Building monsters.db (legacy) ...")
-    _build_legacy()
-
-    print("\nBuilding base.db (SRD presets) ...")
-    _build_v2(BASE_DB, root="monster_presets", src_db=MONSTERS_DB)
+    print("Building base.db (SRD presets) ...")
+    _build_v2(BASE_DB, root="monster_presets")
 
     print("\nBuilding prod.db (user data) ...")
-    # root="monster_builds" avoids collision with the legacy "monsters" table that
-    # seed.sql creates; the router still reads legacy "monsters" until the cutover.
-    _build_v2(PROD_DB, root="monster_builds", src_db=MONSTERS_DB)
+    # root="monster_builds" avoids collision with legacy "monsters" table from seed.sql
+    _build_v2(PROD_DB, root="monster_builds")
 
     print("\nDone.")
-    print(f"  monsters.db — legacy app DB (router reads this)")
-    print(f"  base.db     — SRD preset catalog (monster_presets + child tables)")
-    print(f"  prod.db     — user data (monster_builds + child tables; future app target)")
+    print("  base.db  — SRD preset catalog (monster_presets + child tables)")
+    print("  prod.db  — user data (monster_builds + child tables)")
     if REPORT_PATH.exists():
-        print(f"  migration_report.txt — quarantine log")
+        print("  migration_report.txt — quarantine log")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,6 @@ env/
 .venv/
 
 # Databases — built artifacts, regenerated via `python backend/data/build_db.py`
-backend/data/monsters.db
 backend/data/base.db
 backend/data/prod.db
 backend/data/migration_report.txt
